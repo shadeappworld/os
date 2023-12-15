@@ -1,6 +1,6 @@
 export default {
   name: "App Store",
-  description: "Pluto App Store",
+  description: "ShadeOS App Store",
   ver: 1, // Compatible with core v1
   type: "process",
   privileges: [
@@ -305,7 +305,7 @@ export default {
                       } else {
                         const result = await Root.Modal.prompt(
                           "Notice",
-                          `This app (made for ${app.compatibleWith}) may be incompatible with your current version of Pluto (${sysInfo.version}).\nAre you sure you want to continue installing?`,
+                          `This app (made for ${app.compatibleWith}) may be incompatible with your current version of ShadeOS (${sysInfo.version}).\nAre you sure you want to continue installing?`,
                           container.elm
                         );
 
