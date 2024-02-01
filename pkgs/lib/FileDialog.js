@@ -44,6 +44,7 @@ export default {
               renderFileList(p);
             },
             html: L.icons.arrowUp,
+            title: "Parent Directory",
           },
         ]);
 
@@ -177,7 +178,7 @@ export default {
               .style({ width: "24px", height: "24px" })
               .append(
                 new L.html("div")
-                  .html(L.icons[mapping.icon])
+                  .html(mapping.icon in L.icons ? L.icons[mapping.icon] : mapping.icon)
                   .style({ width: "24px" })
               )
               .appendTo(tableBodyRow);
@@ -252,7 +253,7 @@ export default {
         //       .style({ width: "24px", height: "24px" })
         //       .append(
         //         new L.html("div")
-        //           .html(L.icons[mapping.icon])
+        //           .html(mapping.icon in L.icons ? L.icons[mapping.icon] : mapping.icon)
         //           .style({ width: "24px" })
         //       )
         //       .appendTo(tableBodyRow);
@@ -297,6 +298,7 @@ export default {
               renderFileList(p);
             },
             html: L.icons.arrowUp,
+            title: "Parent Directory",
           },
         ]);
 
@@ -357,7 +359,7 @@ export default {
 
         function setSelectedItem(newPath) {
           selectedItem = newPath;
-          pathInput.val(newPath);
+          if (pathInput.getValue() !== newPath) pathInput.val(newPath);
           confirmButton.attr({ disabled: newPath === "" ? "" : null });
         }
         let tableHead = new L.html("thead").appendTo(table);
@@ -448,7 +450,7 @@ export default {
               .style({ width: "24px", height: "24px" })
               .append(
                 new L.html("div")
-                  .html(L.icons[mapping.icon])
+                  .html(mapping.icon in L.icons ? L.icons[mapping.icon] : mapping.icon)
                   .style({ width: "24px" })
               )
               .appendTo(tableBodyRow);

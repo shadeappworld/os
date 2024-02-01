@@ -37,13 +37,37 @@ export default {
           .appendTo("body");
     }
 
-    new Root.Lib.html("p").html("very cool").appendTo(wrapper);
+    new Root.Lib.html("p")
+      .html(
+        "Welcome to the debug app, here you can find some stuff to test layouts and other things"
+      )
+      .appendTo(wrapper);
     new Root.Lib.html("button")
-      .text("Border-ify everything")
+      .text("Toggle Border")
       .appendTo(wrapper)
       .on("click", (e) => {
         toggleBorder();
       });
+    console.log(Root.Lib.icons, Root.Lib.icons.length);
+
+    for (let key in Root.Lib.icons) {
+      console.log(Root.Lib.icons[key]);
+      new Root.Lib.html("div")
+        .html(Root.Lib.icons[key] + "<br><span>Name: </span>" + key)
+        .appendTo(wrapper)
+        .on("click", (e) => {
+          console.log(e);
+        });
+    }
+
+    // Root.Lib.icons.forEach((element) => {
+    //   new Root.Lib.html("div")
+    //     .html(element)
+    //     .appendTo(wrapper)
+    //     .on("click", (e) => {
+    //       console.log(e);
+    //     });
+    // });
 
     return Root.Lib.setupReturns((m) => {
       console.log("Example received message: " + m);

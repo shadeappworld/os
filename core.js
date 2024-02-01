@@ -1,14 +1,15 @@
-// Pluto
+// ShadeOS
 (async () => {
   try {
     const coreDetails = {
-      version: 1.45,
-      versionString: (1.4).toFixed(1),
+      version: 1.5,
+      versionString: (1.5).toFixed(1),
       codename: "Elysium",
     };
     const knownLibraries = [];
     const GlobalLib = {
       getString,
+      escapeHtml: escapeHtml,
       html: class Html {
         /** The HTML element referenced in this instance. Change using `.swapRef()`, or remove using `.cleanup()`. */
         elm;
@@ -58,12 +59,39 @@
           return this.elm.querySelector(selector);
         }
         /**
-         * querySelector something and get Html access to it.
-         * @param selector The query selector.
-         * @returns The HTML element (as Html)
+         * An easier querySelector method.
+         * @param query The string to query
+         * @returns a new Html
          */
-        queryHtml(selector) {
-          return new Html(this.elm.querySelector(selector));
+        qs(query) {
+          if (this.elm.querySelector(query)) {
+            return Html.from(this.elm.querySelector(query));
+          } else {
+            return null;
+          }
+        }
+        /**
+         * An easier querySelectorAll method.
+         * @param query The string to query
+         * @returns a new Html
+         */
+        qsa(query) {
+          if (this.elm.querySelector(query)) {
+            return Array.from(this.elm.querySelectorAll(query)).map((e) =>
+              Html.from(e)
+            );
+          } else {
+            return null;
+          }
+        }
+        /**
+         * Sets the ID of the element.
+         * @param val The ID to set.
+         * @returns Html
+         */
+        id(val) {
+          this.elm.id = val;
+          return this;
         }
         /**
          * Toggle on/off a class.
@@ -157,6 +185,21 @@
           return this;
         }
         /**
+         * Prepend this element to another element. Uses `prepend()` on the parent.
+         * @param parent Element to append to. HTMLElement, Html, and string (as querySelector) are supported.
+         * @returns Html
+         */
+        prependTo(parent) {
+          if (parent instanceof HTMLElement) {
+            parent.prepend(this.elm);
+          } else if (parent instanceof Html) {
+            parent.elm.prepend(this.elm);
+          } else if (typeof parent === "string") {
+            document.querySelector(parent)?.prepend(this.elm);
+          }
+          return this;
+        }
+        /**
          * Append an element. Typically used as a `.append(new Html(...))` call.
          * @param elem The element to append.
          * @returns Html
@@ -174,6 +217,23 @@
           return this;
         }
         /**
+         * Prepend an element. Typically used as a `.prepend(new Html(...))` call.
+         * @param elem The element to prepend.
+         * @returns Html
+         */
+        prepend(elem) {
+          if (elem instanceof HTMLElement) {
+            this.elm.prepend(elem);
+          } else if (elem instanceof Html) {
+            this.elm.prepend(elem.elm);
+          } else if (typeof elem === "string") {
+            const newElem = document.createElement(elem);
+            this.elm.prepend(newElem);
+            return new Html(newElem.tagName);
+          }
+          return this;
+        }
+        /**
          * Append multiple elements. Typically used as a `.appendMany(new Html(...), new Html(...)` call.
          * @param elements The elements to append.
          * @returns Html
@@ -181,6 +241,17 @@
         appendMany(...elements) {
           for (const elem of elements) {
             this.append(elem);
+          }
+          return this;
+        }
+        /**
+         * Prepend multiple elements. Typically used as a `.prependMany(new Html(...), new Html(...)` call.
+         * @param elements The elements to prepend.
+         * @returns Html
+         */
+        prependMany(...elements) {
+          for (const elem of elements) {
+            this.prepend(elem);
           }
           return this;
         }
@@ -253,7 +324,13 @@
          * @returns Html
          */
         static from(elm) {
-          return new Html(elm);
+          if (typeof elm === "string") {
+            const element = Html.qs(elm);
+            if (element === null) return null;
+            else return element;
+          } else {
+            return new Html(elm);
+          }
         }
         /**
          * An easier querySelector method.
@@ -280,6 +357,31 @@
           } else {
             return null;
           }
+        }
+      },
+      randomString: (_) => {
+        if (crypto && crypto.randomUUID) return crypto.randomUUID();
+        else {
+          var d = new Date().getTime();
+          var d2 =
+            (typeof performance !== "undefined" &&
+              performance.now &&
+              performance.now() * 1000) ||
+            0;
+          return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(
+            /[xy]/g,
+            function (c) {
+              var r = Math.random() * 16;
+              if (d > 0) {
+                r = (d + r) % 16 | 0;
+                d = Math.floor(d / 16);
+              } else {
+                r = (d2 + r) % 16 | 0;
+                d2 = Math.floor(d2 / 16);
+              }
+              return (c === "x" ? r : (r & 0x3) | 0x8).toString(16);
+            }
+          );
         }
       },
       loadLibrary: async function (lib) {
@@ -338,21 +440,39 @@
         var Pid = pid;
         var Token = token;
 
+        this.escapeHtml = escapeHtml;
         this.getString = function (str, replacements = null) {
           return getString(str, replacements, strs);
         };
 
         this.html = GlobalLib.html;
+        this.randomString = GlobalLib.randomString;
         this.icons = GlobalLib.icons;
         this.systemInfo = coreDetails;
-
+        this.updateProcTitle = function (newTitle) {
+          if (Core.processList[Pid].proc !== null) {
+            Core.processList[Pid].proc.name = newTitle;
+          }
+        };
+        this.updateProcDesc = function (newDescription) {
+          if (Core.processList[Pid].proc !== null) {
+            Core.processList[Pid].proc.description = newDescription;
+          }
+        };
         this.langs = supportedLangs;
         this.launch = async (app, parent = "body") => {
+          let appName = "";
+
+          if (Core.processList[Pid].proc !== null) {
+            appName = Core.processList[Pid].proc.name;
+          } else {
+            appName = "???";
+          }
           if (
             (await Modal.prompt(
               getString("notice"),
               getString("core_appLaunch_notification", {
-                suspectedApp: Core.processList[Pid].proc.name,
+                suspectedApp: appName,
                 targetApp: app.split(":").pop(),
               }),
               parent
@@ -407,10 +527,11 @@
             }
           };
         };
-        this.setupReturns = function (onMessage) {
+        this.setupReturns = function (onMessage, trayInfo = null) {
           // the idea is a standardized .proc on processes
           return {
             end: this.onEnd,
+            trayInfo,
             send: async (m) => {
               if (
                 m &&
@@ -457,34 +578,9 @@
         Core.processList[pid] = null;
         console.groupEnd();
       },
-      randomString: (_) => {
-        if (crypto && crypto.randomUUID) return crypto.randomUUID();
-        else {
-          var d = new Date().getTime();
-          var d2 =
-            (typeof performance !== "undefined" &&
-              performance.now &&
-              performance.now() * 1000) ||
-            0;
-          return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(
-            /[xy]/g,
-            function (c) {
-              var r = Math.random() * 16;
-              if (d > 0) {
-                r = (d + r) % 16 | 0;
-                d = Math.floor(d / 16);
-              } else {
-                r = (d2 + r) % 16 | 0;
-                d2 = Math.floor(d2 / 16);
-              }
-              return (c === "x" ? r : (r & 0x3) | 0x8).toString(16);
-            }
-          );
-        }
-      },
     };
 
-    let Modal;
+    let Modal, Toast;
 
     const corePrivileges = {
       startPkg: { description: "core_appAccessControl_privilege_startPkg" },
@@ -497,6 +593,10 @@
       services: { description: "core_appAccessControl_privilege_services" },
       setLanguage: {
         description: "core_appAccessControl_privilege_setLanguage",
+      },
+      host: {
+        description:
+          "core_appAccessControl_privilege_desktopOnlyHostPermission",
       },
       full: {
         description: "core_appAccessControl_privilege_full",
@@ -517,7 +617,14 @@
         });
     }
 
-    const supportedLangs = ["en_US", "en_GB", "de_DE", "es_ES", "pt_BR"];
+    const supportedLangs = [
+      "en_US",
+      "en_GB",
+      "de_DE",
+      "es_ES",
+      "pt_BR",
+      "fil_PH",
+    ];
 
     let language = "en_US";
 
@@ -587,7 +694,7 @@
                 pid: PID,
                 proc: null,
               };
-              const Token = ProcLib.randomString();
+              const Token = GlobalLib.randomString();
               const newLib = new processLib(url, PID, Token, pkg.strings);
               if (Core.processList[PID]) Core.processList[PID].token = Token;
               let result;
@@ -606,6 +713,8 @@
                   Token,
                   Modal,
                   Services: Core.services,
+                  // Provide access to GlobalLib just in case.
+                  GlobalLib,
                 });
               } else if (
                 pkg.privileges === undefined ||
@@ -617,7 +726,7 @@
                   PID,
                   Token,
                   Modal,
-                  Services: Core.services,
+                  Services: null,
                 });
               } else {
                 let privileges = {};
@@ -632,7 +741,17 @@
 
                   if (item.privilege in corePrivileges) {
                     privileges[item.privilege] = corePrivileges[item.privilege];
-                    if (!item.description) continue;
+                    if (!item.description)
+                      item.description =
+                        '<span class="danger">No author note</span>';
+                    // dangerous
+                    if (item.privilege === "full") {
+                      privileges[
+                        item.privilege
+                      ].description = `<span class=\"danger\">${getString(
+                        privileges[item.privilege].description
+                      )}</span>`;
+                    }
                     privileges[item.privilege].authorNote = item.description;
                   }
                 }
@@ -640,10 +759,18 @@
                 let modalResult = "";
                 if (force === false)
                   modalResult = await new Promise((resolve, reject) => {
+                    setTimeout(() => {
+                      let x = new Audio("./assets/alert.wav");
+                      x.volume = 0.75;
+                      x.play();
+                    }, 100);
                     Modal.modal(
                       getString("core_appAccessControl_title"),
                       `${getString("core_appAccessControl_description", {
-                        appName: url.split(":").pop(),
+                        appName:
+                          url === "none:<Imported as URI>"
+                            ? pkg.name
+                            : url.split(":").pop(),
                       })}<br><br><ul>${Object.keys(privileges)
                         .map(
                           (m) =>
@@ -692,6 +819,7 @@
                     ...(privileges.knownPackageList
                       ? { knownPackageList: Core.knownPackageList }
                       : {}),
+                    ...(privileges.host ? { host: GlobalLib.host } : {}),
                     ...(privileges.setLanguage
                       ? { setLanguage: Core.setLanguage }
                       : {}),
@@ -717,8 +845,9 @@
                     Modal,
                     Services: Core.services,
                   });
-                } else {
+                } else if (modalResult === false) {
                   result = null;
+                  return;
                 }
               }
 
@@ -779,20 +908,40 @@
           }
         }
       },
-      services: {},
+      services: [],
       broadcastEventToProcs,
     };
 
     Modal = await Core.startPkg("ui:Modal");
-
-    await Core.startPkg("system:BootLoader");
+    Toast = await Core.startPkg("lib:Notify");
 
     // Comment these out to disable global core access
     // recommended to keep for debugging purposes
     window.m = Modal;
+    window.t = Toast;
     window.c = Core;
     window.l = GlobalLib;
     window.h = GlobalLib.html;
+    window.cd = coreDetails;
+
+    // If in electron app, don't give away host data
+    let host;
+    if (window.host !== undefined) {
+      host = window.host;
+      window.host = undefined;
+
+      GlobalLib.host = host;
+
+      // Give access to the core temporarily.
+      window.bootUpCore = Core;
+      // Desktop app-specific boot event.
+      window.dispatchEvent(new CustomEvent("pluto.boot"));
+      setTimeout(() => {
+        window.bootUpCore = null;
+      }, 1000);
+    }
+
+    await Core.startPkg("system:BootLoader");
   } catch (e) {
     alert(e);
   }

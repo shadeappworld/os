@@ -1,3 +1,7 @@
+import ctxMenu from "../lib/CtxMenu.js";
+import Tooltip from "../components/Tooltip.js";
+import * as htmlClass from "../../assets/html.js";
+
 export default {
   name: "Desktop",
   description: "Backdrop user interface",
@@ -17,6 +21,7 @@ export default {
       wrapper.cleanup();
     });
 
+    /** @type {htmlClass.default} */
     let Html = Root.Lib.html;
 
     let vfs = await Root.Core.startPkg("lib:VirtualFS");
@@ -54,44 +59,46 @@ export default {
       })
       .appendTo(wrapper);
 
+    const iconsWrapper = new Root.Lib.html("div")
+      .class("desktop-apps")
+      .appendTo(wrapper);
+
+    if (localStorage.getItem("oldVFS")) {
+      const x = await Root.Modal.prompt(
+        "Filesystem restore",
+        "Looks like you have an old file system.\nWould you like to mount it?",
+        wrapper
+      );
+
+      if (x === true) {
+        // Do the thing the thing
+        // const vfs = await l.loadLibrary("VirtualFS");
+
+        // Root -> oldFs
+        vfs.fileSystem.Root["oldFs"] = JSON.parse(
+          localStorage.getItem("oldVFS")
+        );
+        await vfs.save();
+        localStorage.removeItem("oldVFS");
+
+        let fm = await Root.Core.startPkg("apps:FileManager", true, true);
+
+        Root.Modal.alert(
+          "Filesystem restore",
+          "Your old filesystem has been mounted to the 'oldFs' folder.",
+          wrapper
+        );
+      }
+    }
+
     async function refresh() {
+      iconsWrapper.clear();
+
       background.style({
         opacity: 1,
         display: "block",
         "z-index": -1,
       });
-
-      let mouseSpace = {
-        x: 0,
-        y: 0,
-      };
-      if (localStorage.getItem("oldVFS")) {
-        const x = await Root.Modal.prompt(
-          "Filesystem restore",
-          "Looks like you have an old file system.\nWould you like to mount it?",
-          wrapper
-        );
-
-        if (x === true) {
-          // Do the thing the thing
-          // const vfs = await l.loadLibrary("VirtualFS");
-
-          // Root -> oldFs
-          vfs.fileSystem.Root["oldFs"] = JSON.parse(
-            localStorage.getItem("oldVFS")
-          );
-          await vfs.save();
-          localStorage.removeItem("oldVFS");
-
-          let fm = await Root.Core.startPkg("apps:FileManager", true, true);
-
-          Root.Modal.alert(
-            "Filesystem restore",
-            "Your old filesystem has been mounted to the 'oldFs' folder.",
-            wrapper
-          );
-        }
-      }
 
       // new Root.Lib.html("div")
       //   .html(`<svg viewBox="0 0 24 24" width="64" height="64" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" class="css-i6dzq1"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>`)
@@ -115,10 +122,6 @@ export default {
 
       const desktopDirectory = "Root/Desktop";
       const fileList = await vfs.list(desktopDirectory);
-
-      const iconsWrapper = new Root.Lib.html("div")
-        .class("desktop-apps")
-        .appendTo(wrapper);
 
       function createDesktopIcon(fileName, icon, fn) {
         const mouse = { x: 0, y: 0 };
@@ -172,65 +175,38 @@ export default {
         );
 
         createDesktopIcon(mapping.name, mapping.icon, mapping.onClick);
-
-        // if (file.item.endsWith(".shrt")) {
-        //   try {
-        //     let shrtFile = JSON.parse(
-        //       await vfs.readFile(desktopDirectory + "/" + file.item)
-        //     );
-
-        //     if (!shrtFile.name || !shrtFile.icon || !shrtFile.fullName) {
-        //       continue;
-        //     }
-
-        //     createDesktopIcon(shrtFile.name, shrtFile.icon, () => {
-        //       Root.Core.startPkg(shrtFile.fullName, true, true);
-        //     });
-        //   } catch (e) {
-        //     console.log("UNABLE TO PARSE", file);
-        //     Root.Modal.alert("Desktop Shortcut Error", e, wrapper);
-        //   }
-        // } else {
-        //   createDesktopIcon(file.item, file.type, async (e) => {
-        //     console.log(file.type)
-        //     if (file.type == "dir") {
-        //       let fm = await Root.Core.startPkg("apps:FileManager");
-        //       fm.proc.send({ type: "loadFolder", path: desktopDirectory + "/" + file.item });
-        //     }
-        //     else if (file.type == "file") {
-        //       let fileExtension = (
-        //         file.item.includes(".") ? file.item.split(".").pop() : ""
-        //       ).trim();
-        //       switch (fileExtension) {
-        //         case "app":
-        //           Root.Core.startPkg(
-        //             "data:text/javascript;base64," +
-        //             btoa(await vfs.readFile(desktopDirectory + "/" + file.item)),
-        //             false
-        //           );
-        //           break;
-        //         case "png":
-        //         case "jpg":
-        //         case "jpeg":
-        //         case "bmp":
-        //         case "gif":
-        //           let img = await Root.Core.startPkg("apps:ImageViewer");
-        //           img.proc.send({ type: "loadFile", path: desktopDirectory + "/" + file.item });
-        //           break;
-        //         default:
-        //           let np = await Root.Core.startPkg("apps:Notepad");
-        //           np.proc.send({ type: "loadFile", path: desktopDirectory + "/" + file.item });
-        //           break;
-        //       }
-        //     }
-        //   });
-        // }
       }
     }
 
     const preloadImage = new Image();
     preloadImage.src = wallpaper;
     preloadImage.addEventListener("load", refresh);
+
+    background.on("contextmenu", (e) => {
+      e.preventDefault();
+      ctxMenu.data.new(e.clientX, e.clientY, [
+        {
+          item: Root.Lib.getString("refresh"),
+          async select() {
+            refresh();
+          },
+        },
+        {
+          item: Root.Lib.getString("systemApp_FileManager"),
+          async select() {
+            let fm = await Root.Core.startPkg("apps:FileManager", true, true);
+
+            fm.proc.send({ type: "loadFolder", path: "Root/Desktop" });
+          },
+        },
+        {
+          item: Root.Lib.getString("systemApp_Settings"),
+          async select() {
+            let fm = await Root.Core.startPkg("apps:Settings", true, true);
+          },
+        },
+      ]);
+    });
 
     // let topBar = new Root.Lib.html("div").appendTo(wrapper).class("topBar");
     // let tab1 = new Root.Lib.html("div")
@@ -257,13 +233,22 @@ export default {
 
     function onClickDetect(ev) {
       if (ev.target.closest(".menu")) {
-      } else toggleMenu();
+      } else {
+        if (ev.target.closest(".ctx-menu")) return;
+        if (menuIsOpen === true) toggleMenu();
+        if (trayMenuState === true) toggleTrayMenu();
+      }
     }
 
     function onFullClickDetect(ev) {
+      if (menuIsOpen !== true) return;
+
       if (ev.target.closest(".menu")) {
         if (ev.button === 0) {
-          if (ev.target.closest("button") || ev.target.closest(".app")) {
+          if (
+            ev.target.closest(".menu button") ||
+            ev.target.closest(".menu .app")
+          ) {
             toggleMenu();
           }
         }
@@ -291,6 +276,7 @@ export default {
         window.addEventListener("click", onFullClickDetect);
         window.addEventListener("touchstart", onClickDetect);
         window.addEventListener("touchend", onFullClickDetect);
+
         if (!menuElm) {
           // Create menu element if it doesn't exist
           const desktopApps = (await vfs.list("Root/Desktop"))
@@ -303,20 +289,49 @@ export default {
             .map((f) => {
               return { type: "installed", item: f.item };
             });
+          let asApps = [];
+          const asExists = await vfs.whatIs(
+            "Registry/AppStore/_AppStoreIndex.json"
+          );
+          if (asExists !== null) {
+            console.log(asExists);
+            asApps = (await vfs.list("Registry/AppStore"))
+              .filter((f) => f.item.endsWith(".app"))
+              .map((f) => {
+                return { type: "appStore", item: f.item };
+              });
+          }
 
-          const apps = [...installedApps, ...desktopApps];
+          const apps = [...installedApps, ...asApps, ...desktopApps];
 
           const appsHtml = await Promise.all(
             apps.map(async (app) => {
               // console.log(app);
               let icon = "box",
                 name = app.item,
-                description = null;
+                description = null,
+                mapping = null;
 
               if (app.type === "desktop") {
                 const data = await FileMappings.retrieveAllMIMEdata(
                   "Root/Desktop/" + app.item
                 );
+
+                mapping = data;
+
+                icon = data.icon;
+                name = data.localizedName ?? data.name;
+                description = data.fullName;
+              } else if (app.type === "appStore") {
+                const data = await FileMappings.retrieveAllMIMEdata(
+                  "Registry/AppStore/" + app.item
+                );
+
+                mapping = data;
+
+                if (data.invalid === true) {
+                  return undefined;
+                }
 
                 icon = data.icon;
                 name = data.name;
@@ -326,7 +341,9 @@ export default {
               return new Html("div")
                 .class("app")
                 .appendMany(
-                  new Html("div").class("app-icon").html(Root.Lib.icons[icon]),
+                  new Html("div")
+                    .class("app-icon")
+                    .html(icon in Root.Lib.icons ? Root.Lib.icons[icon] : icon),
                   new Html("div")
                     .class("app-text")
                     .appendMany(
@@ -354,15 +371,17 @@ export default {
                     } catch (e) {
                       console.log("Couldn't load the application");
                     }
+                  } else if (app.type === "appStore") {
+                    await mapping.onClick();
                   } else {
                     try {
                       const appData = await vfs.readFile(
                         "Root/Pluto/apps/" + app.item
                       );
                       await Root.Core.startPkg(
-                        "data:text/javascript;base64," + btoa(appData),
+                        "data:text/javascript," + encodeURIComponent(appData),
                         false,
-                        true
+                        false
                       );
                     } catch (e) {
                       console.log("Couldn't load the application");
@@ -455,13 +474,197 @@ export default {
       if (pastMinute === minutes) return;
       pastMinute = minutes;
       let timeString = `${hours}:${minutes}`;
-      quickAccessButton.text(timeString);
+      quickAccessButtonText.text(timeString);
     }
+
+    let trayWrapper = new Root.Lib.html("div")
+      .style({ position: "relative" })
+      .appendTo(dock);
+
+    const trayMenuButton = new Root.Lib.html("button")
+      .class("toolbar-button", "tray")
+      .html(Root.Lib.icons.chevronUp)
+      .appendTo(trayWrapper);
+
+    let trayMenuState = false; // not opened
+    let trayIsToggling = false;
+    let trayElm;
+
+    async function toggleTrayMenu() {
+      if (trayIsToggling) {
+        return; // Return early if menu is currently toggling
+      }
+
+      trayIsToggling = true;
+
+      trayMenuState = !trayMenuState;
+
+      let prevItems = [];
+
+      if (trayMenuState === true) {
+        window.addEventListener("mousedown", onClickDetect);
+        window.addEventListener("click", onFullClickDetect);
+        window.addEventListener("touchstart", onClickDetect);
+        window.addEventListener("touchend", onFullClickDetect);
+        if (!trayElm) {
+          async function createTrayItems() {
+            const trayItems = Root.Core.processList.filter((f) => f !== null);
+
+            let appsHtml = await Promise.all(
+              trayItems.map(async (app) => {
+                if (app.proc === undefined || app.proc === null) {
+                  console.log("Bad app");
+                  return;
+                }
+                const t = app.proc.trayInfo;
+                if (t === null || t === undefined) {
+                  return false;
+                }
+                if (typeof t.icon === undefined) {
+                  return false;
+                }
+
+                let icon = t.icon || Root.Lib.icons.box;
+
+                let popup;
+
+                const item = new Html("button")
+                  .class("tray-item")
+                  .appendMany(
+                    new Html("div")
+                      .styleJs({ width: "24px", height: "24px" })
+                      .class("app-icon")
+                      .html(icon)
+                  )
+                  .on("mouseenter", () => {
+                    if (popup) {
+                      popup.cleanup();
+                      popup = null;
+                    } else {
+                      const bcr = item.elm.getBoundingClientRect();
+                      popup = Tooltip.new(
+                        bcr.left + bcr.width / 2,
+                        bcr.bottom - 36,
+                        t.name || app.proc.name || app.name,
+                        document.body,
+                        true
+                      );
+
+                      requestAnimationFrame(() => {
+                        popup.style({
+                          left:
+                            bcr.left +
+                            bcr.width / 2 -
+                            popup.elm.offsetWidth / 2 +
+                            "px",
+                        });
+                      });
+                    }
+                  })
+                  .on("mouseleave", (e) => {
+                    if (popup) {
+                      popup.cleanup();
+                      popup = null;
+                    }
+                  })
+                  .on("click", async (e) => {
+                    // send message to process to spawn a custom context menu
+                    app.proc.send({
+                      type: "context-menu",
+                      button: "left-click",
+                      x: e.clientX,
+                      y: e.clientY,
+                    });
+                  })
+                  .on("contextmenu", async (e) => {
+                    e.preventDefault();
+                    app.proc.send({
+                      type: "context-menu",
+                      button: "right-click",
+                      x: e.clientX,
+                      y: e.clientY,
+                    });
+                  });
+
+                // return { pid: app.pid, item };
+                return item;
+              })
+            );
+
+            return appsHtml.filter((m) => m !== false);
+          }
+
+          /** @type {htmlClass.default} */
+          trayElm = new Html("div").class("menu", "tray");
+          async function updateTray() {
+            if (trayMenuState === false) clearInterval(trayInterval);
+            let trayApps = await createTrayItems();
+            if (trayApps.length === 0) {
+              trayElm
+                .clear()
+                .appendMany(
+                  new Html("span")
+                    .class(
+                      "label",
+                      "w-100",
+                      "flex-group",
+                      "fg",
+                      "fc",
+                      "mt-2",
+                      "mb-2"
+                    )
+                    .text("No apps are using the tray.")
+                );
+              trayElm.style({
+                width: "160px",
+              });
+            } else {
+              if (Html.qsa(".tooltip") !== null) {
+                Html.qsa(".tooltip").forEach((t) => t.cleanup());
+              }
+              trayElm
+                .clear()
+                .appendMany(
+                  new Html("div").class("apps").appendMany(...trayApps)
+                );
+            }
+          }
+
+          updateTray();
+
+          let trayInterval = setInterval(updateTray, 1000);
+
+          trayElm.appendTo(trayWrapper);
+        }
+
+        trayElm.classOn("opening");
+        setTimeout(() => {
+          trayElm.classOff("opening");
+          trayIsToggling = false;
+        }, 500);
+      } else {
+        window.removeEventListener("mousedown", onClickDetect);
+        window.removeEventListener("touchstart", onClickDetect);
+        if (trayElm) {
+          trayElm.classOn("closing");
+          setTimeout(() => {
+            trayElm.cleanup();
+            trayElm = null; // Reset menu element reference
+            trayIsToggling = false;
+          }, 500);
+        }
+      }
+    }
+
+    trayMenuButton.on("click", toggleTrayMenu);
 
     const quickAccessButton = new Root.Lib.html("div")
       .class("toolbar-button")
-      .text("..:..")
       .appendTo(dock);
+
+    const quickAccessButtonText = new Root.Lib.html("spam").appendTo(
+      quickAccessButton
+    );
 
     updateTime();
     timeInterval = setInterval(updateTime, 1000);
@@ -609,6 +812,8 @@ export default {
             }
             break;
           case "refresh":
+            // Language swap, refresh desktop.
+            refresh();
             break;
           case "coreEvent":
             console.log("Desktop received core event", data);

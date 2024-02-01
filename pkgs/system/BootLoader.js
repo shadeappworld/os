@@ -24,7 +24,7 @@ export default {
     const ls = await Root.Core.startPkg("ui:LoadingScreen");
     const FileMapping = await Root.Core.startPkg("lib:FileMappings");
     // start loading screen
-    const lsg = ls.loader();
+    const lsg = ls.loader(Root.Lib);
     try {
       const serviceReference = [];
 
@@ -76,6 +76,10 @@ export default {
       }
       if (appearanceConfig.dockStyle) {
         document.documentElement.dataset.dockStyle = appearanceConfig.dockStyle;
+      }
+      if (appearanceConfig.dockShowTray !== undefined) {
+        document.documentElement.dataset.dockShowTray =
+          appearanceConfig.dockShowTray;
       }
       if (
         appearanceConfig.language &&
@@ -154,9 +158,8 @@ export default {
       const consoleApp = await Root.Core.startPkg("system:Console", true, true);
 
       document.addEventListener("keydown", (e) => {
-        if (e.key === "`") {
+        if (e.key === "~") {
           e.preventDefault();
-          // send msg
           consoleApp.proc.send({ type: "toggle" });
         }
       });
@@ -175,20 +178,8 @@ export default {
       );
     }
 
-    return Root.Lib.setupReturns(
-      (_) => {
-        // Root.Modal.alert("BootLoader", "No");
-        // console.log("BootLoader process ended, attempting clean up...");
-        // const result = Root.Lib.cleanup(pid, token);
-        // if (result === true) {
-        //   console.log("Cleanup Success! Token:", token);
-        // } else {
-        //   console.log("Cleanup Failure. Token:", token);
-        // }
-      },
-      (m) => {
-        console.log("BootLoader received message: " + m);
-      }
-    );
+    return Root.Lib.setupReturns((m) => {
+      console.log("BootLoader received message: " + m);
+    });
   },
 };

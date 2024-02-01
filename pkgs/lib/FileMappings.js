@@ -35,6 +35,10 @@ export default {
         type: "executable",
         label: "Executable Application",
         opensWith: "custom",
+        ctxMenuApp: {
+          launch: "apps:DevEnv",
+          name: "systemApp_DevEnv",
+        },
         icon: "box",
       },
       json: {
@@ -74,10 +78,52 @@ export default {
         icon: "fileImage",
       },
       mp4: {
-        type: "image",
+        type: "video",
         label: "MP4 video",
-        opensWith: "apps:ImageViewer",
-        icon: "fileImage",
+        opensWith: "apps:VideoPlayer",
+        icon: "fileVideo",
+      },
+      mov: {
+        type: "video",
+        label: "MOV video",
+        opensWith: "apps:VideoPlayer",
+        icon: "fileVideo",
+      },
+      mkv: {
+        type: "video",
+        label: "MKV video",
+        opensWith: "apps:VideoPlayer",
+        icon: "fileVideo",
+      },
+      avi: {
+        type: "video",
+        label: "AVI video",
+        opensWith: "apps:VideoPlayer",
+        icon: "fileVideo",
+      },
+      webm: {
+        type: "video",
+        label: "WebM video",
+        opensWith: "apps:VideoPlayer",
+        icon: "fileVideo",
+      },
+      wav: {
+        type: "audio",
+        label: "WAV audio",
+        opensWith: "apps:AudioPlayer",
+        icon: "fileAudio",
+      },
+      m4a: {
+        type: "audio",
+        label: "MPEG audio",
+        opensWith: "apps:AudioPlayer",
+        icon: "fileAudio",
+      },
+      mp3: {
+        type: "audio",
+        label: "MP3 audio",
+        opensWith: "apps:AudioPlayer",
+        icon: "fileAudio",
       },
       shrt: {
         type: "text",
@@ -95,7 +141,12 @@ export default {
       // pass in path, if shrt file, run custom shrt algorithm (returns everything that a regular run does), else, find file format, return icon, label, file name, and onclick events
       const vfs = await L.loadLibrary("VirtualFS");
       await vfs.importFS();
-      let ext = path.split(".").pop();
+      /**@type array */
+      let pathLast = path.split("/").pop();
+      let pathSplitDot = pathLast.split(".");
+      const ext = pathSplitDot.pop();
+      const fileName = pathSplitDot.join(".");
+
       if (ext === "shrt") {
         let shrtFile = {};
         try {
@@ -124,13 +175,62 @@ export default {
           return 0;
         }
         return {
-          name: shrtFile.name,
+          name: L.getString(shrtFile.localizedName) ?? shrtFile.name,
           icon: shrtFile.icon,
           fullName: `Desktop shortcut (${shrtFile.fullName})`,
           onClick: (c) => {
             c.startPkg(shrtFile.fullName, true, true);
           },
         };
+      } else if (ext === "app" && path.startsWith("Registry/AppStore/")) {
+        const asExists = await vfs.whatIs(
+          "Registry/AppStore/_AppStoreIndex.json"
+        );
+
+        if (asExists === null) {
+          return {
+            name: "Non-signed App",
+            icon: "package",
+            fullName: "Invalid App",
+            onClick() {
+              L.Modal.alert("This app can not be launched");
+            },
+          };
+        } else {
+          const as = JSON.parse(
+            await vfs.readFile("Registry/AppStore/_AppStoreIndex.json")
+          );
+
+          console.log(fileName, as);
+
+          if (fileName in as) {
+            return {
+              name: as[fileName].name,
+              icon: `<img style="border-radius:50%;width:24px;height:24px" src="${as[fileName].icon}">`,
+              fullName: as[fileName].shortDescription,
+              ctxMenuApp: undefined,
+              invalid: false,
+              async onClick() {
+                C.startPkg(
+                  "data:text/javascript," +
+                    encodeURIComponent(await vfs.readFile(path)),
+                  false,
+                  false
+                );
+              },
+            };
+          } else {
+            return {
+              name: "App Store App (unknown)",
+              icon: "wrench",
+              fullName: "App Store App (unknown)",
+              invalid: true,
+              onClick() {
+                L.Modal.alert("This app can not be launched");
+              },
+            };
+          }
+        }
       } else {
         let icon = await vfs.whatIs(path);
         let map = {};
@@ -161,13 +261,15 @@ export default {
           name: pathSplit[pathSplit.length - 1],
           icon,
           fullName: map.label,
+          ctxMenuApp: map.ctxMenuApp,
           onClick: async (c) => {
             if (map.opensWith === null) return;
             if (map.opensWith === "custom") {
               c.startPkg(
-                "data:text/javascript;base64," + btoa(await vfs.readFile(path)),
+                "data:text/javascript," +
+                  encodeURIComponent(await vfs.readFile(path)),
                 false,
-                true
+                false
               );
               return;
             } else {

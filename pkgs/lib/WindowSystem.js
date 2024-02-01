@@ -19,6 +19,14 @@ let lib = {};
 let core = {};
 let Html;
 
+function checkDesktopPresence() {
+  return (
+    core.processList
+      .filter((n) => n !== null)
+      .find((n) => n.name === "ui:Desktop") !== undefined
+  );
+}
+
 function getWindowObjectById(id) {
   return core.windowsList.find((window) => window.options.id === id);
 }
@@ -33,7 +41,7 @@ function getSnapIndicator() {
 export default {
   name: "Window System",
   description:
-    "This is the base window system for Pluto. This library includes function to create and destroy windows.",
+    "This is the base window system for ShadeOS. This library includes function to create and destroy windows.",
   ver: 1, // Compatible with core v1
   type: "library",
   init: function (l, c) {
@@ -62,6 +70,17 @@ export default {
         }
         if (!this.options.height) {
           this.options.height = 200;
+        }
+        if (this.options.width > window.innerWidth) {
+          this.options.width = window.innerWidth - snapBoxMargin * 2;
+          this.options.left = snapBoxMargin + "px";
+        }
+        if (this.options.height > window.innerHeight) {
+          this.options.height =
+            window.innerHeight -
+            snapBoxMargin * 2 +
+            (checkDesktopPresence() ? -48 : 0);
+          this.options.top = snapBoxMargin + "px";
         }
         if (!this.options.minWidth) {
           this.options.minWidth = 185;
@@ -264,6 +283,7 @@ export default {
           this.window.dataset.lastHeight = this.window.style.height;
           switch (side) {
             default:
+            // unused
             case "top":
               this.window.classList.toggle("max");
               // this.window.style.top = 0;
@@ -273,7 +293,9 @@ export default {
               this.window.style.width =
                 Math.floor(this.window.parentNode.offsetWidth / 2) + "px";
               this.window.style.height =
-                this.window.parentNode.offsetHeight - 54 + "px";
+                this.window.parentNode.offsetHeight +
+                (checkDesktopPresence() ? -54 : 0) +
+                "px";
               this.window.style.top = 0;
               this.window.style.left = 0;
               this.window.classList.toggle("snapped");
@@ -285,7 +307,9 @@ export default {
                 Math.floor(this.window.parentNode.offsetWidth / 2) + "px";
               // Height is height of parent minus dock height
               this.window.style.height =
-                this.window.parentNode.offsetHeight - 54 + "px";
+                this.window.parentNode.offsetHeight +
+                (checkDesktopPresence() ? -54 : 0) +
+                "px";
               // Top is top of screen (0)
               this.window.style.top = 0;
               // Left is the parent width minus the new window width
@@ -294,6 +318,67 @@ export default {
                 parseInt(this.window.style.width) +
                 "px";
               // Make it known as snapped
+              this.window.classList.toggle("snapped");
+              break;
+            // Corner snapping (new in v1.5)
+            case "top-left":
+              this.window.style.width =
+                Math.floor(this.window.parentNode.offsetWidth / 2) + "px";
+              this.window.style.height =
+                Math.floor(this.window.parentNode.offsetHeight / 2) +
+                (checkDesktopPresence() ? -54 * 0.5 : 0) +
+                "px";
+              this.window.style.top = 0;
+              this.window.style.left = 0;
+              this.window.classList.toggle("snapped");
+              break;
+            case "top-right":
+              this.window.style.width =
+                Math.floor(this.window.parentNode.offsetWidth / 2) + "px";
+              this.window.style.height =
+                Math.floor(this.window.parentNode.offsetHeight / 2) +
+                (checkDesktopPresence() ? -54 * 0.5 : 0) +
+                "px";
+              this.window.style.top = 0;
+              this.window.style.left =
+                this.window.parentNode.offsetWidth -
+                parseInt(this.window.style.width) +
+                "px";
+              this.window.classList.toggle("snapped");
+              break;
+            case "bottom-left":
+              this.window.style.width =
+                Math.floor(this.window.parentNode.offsetWidth / 2) + "px";
+              this.window.style.height =
+                Math.floor(this.window.parentNode.offsetHeight / 2) +
+                (checkDesktopPresence() ? -54 * 0.5 : 0) +
+                "px";
+              this.window.style.top =
+                this.window.parentNode.offsetHeight -
+                parseInt(this.window.style.height) +
+                (checkDesktopPresence() ? -54 : 0) +
+                "px";
+              console.log();
+              this.window.style.left = 0;
+              this.window.classList.toggle("snapped");
+              break;
+            case "bottom-right":
+              this.window.style.width =
+                Math.floor(this.window.parentNode.offsetWidth / 2) + "px";
+              this.window.style.height =
+                Math.floor(this.window.parentNode.offsetHeight / 2) +
+                (checkDesktopPresence() ? -54 * 0.5 : 0) +
+                "px";
+              this.window.style.top =
+                this.window.parentNode.offsetHeight -
+                parseInt(this.window.style.height) +
+                (checkDesktopPresence() ? -54 : 0) +
+                "px";
+              console.log();
+              this.window.style.left =
+                this.window.parentNode.offsetWidth -
+                parseInt(this.window.style.width) +
+                "px";
               this.window.classList.toggle("snapped");
               break;
           }
@@ -360,6 +445,28 @@ export default {
         });
       }
 
+      // Available as of the late v1.5 core
+      show() {
+        return new Promise((res, _rej) => {
+          this.window.style.display = "flex";
+          this.window.classList.remove("closing");
+          setTimeout(() => {
+            res(true);
+          }, 500);
+        });
+      }
+      hide() {
+        return new Promise((res, _rej) => {
+          this.window.style.display = "flex";
+          this.window.classList.add("closing");
+          setTimeout(() => {
+            this.window.style.display = "none";
+            this.window.classList.remove("closing");
+            res(true);
+          }, 500);
+        });
+      }
+
       setTitle(title) {
         this.window.querySelector(".win-titlebar .title").innerText = title;
       }
@@ -367,6 +474,26 @@ export default {
     focusWindow,
   },
 };
+
+/** Prevent windows from getting stuck outside the screen */
+function adjustWindow(x) {
+  if (parseInt(x.style.top) < 0) {
+    x.style.top = `${snapBoxMargin + 1}px`;
+  }
+  if (parseInt(x.style.left) < 0) {
+    x.style.left = `${snapBoxMargin + 1}px`;
+  }
+  if (parseInt(x.style.top) + x.offsetHeight > window.innerHeight) {
+    x.style.top = `${
+      window.innerHeight - x.offsetHeight - (snapBoxMargin + 1)
+    }px`;
+  }
+  if (parseInt(x.style.left) + x.offsetWidth > window.innerWidth) {
+    x.style.left = `${
+      window.innerWidth - x.offsetWidth - (snapBoxMargin + 1)
+    }px`;
+  }
+}
 
 function focusWindow(x) {
   let zIn = 0;
@@ -383,16 +510,24 @@ function focusWindow(x) {
       }
     });
   }
+  adjustWindow(x);
   x.style.zIndex = zIn + 2;
   x.classList.add("focus");
 
-  // console.log("[WS]", x.id, windowsList);
+  core.broadcastEventToProcs({
+    type: "wsEvent",
+    data: {
+      type: "focusedWindow",
+      data: getWindowObjectById(x.id),
+    },
+  });
 }
 
 function BeginWinDrag(e) {
   // Context menu
-  if (e.target.closest(".ctx-menu") === null) {
-    Html.qs(".ctx-menu") && Html.qs(".ctx-menu").cleanup();
+  if (e.target.closest(".popup-overlay") === null) {
+    Html.qsa(".popup-overlay") !== null &&
+      Html.qsa(".popup-overlay").forEach((p) => p.cleanup());
   }
 
   // check if window can be selected
@@ -427,15 +562,17 @@ function BeginWinDrag(e) {
   mouseDown = true;
   winRef = x;
 
-  // if (!Html.qs(".debug")) {
-  //   new Html("p")
-  //     .class("debug")
-  //     .styleJs({
-  //       position: "fixed",
-  //       bottom: "30vh",
-  //     })
-  //     .appendTo("body");
-  // }
+  if (window.__debug !== undefined) {
+    if (!Html.qs(".debug")) {
+      new Html("p")
+        .class("debug")
+        .styleJs({
+          position: "fixed",
+          bottom: "30vh",
+        })
+        .appendTo("body");
+    }
+  }
 }
 
 let snapMargin = 2;
@@ -501,8 +638,142 @@ function WinDrag(e) {
       winRef.style.top = newPositionY + "px";
 
       // edges check
-      if (newPositionY < snapMargin) {
-        // Html.qs(".debug").text("snap: top");
+      if (newPositionX < snapMargin && newPositionY < snapMargin) {
+        // Top left.
+        if (Html.qs(".debug")) {
+          Html.qs(".debug").text("snap: TOP LEFT");
+        }
+        animateSnapIndicator(
+          "top-left",
+          {
+            opacity: 1,
+            top: winRef.style.top,
+            left: winRef.style.left,
+            width: winRef.style.width,
+            height: winRef.style.height,
+          },
+          {
+            opacity: 1,
+            width: Math.floor(winRef.parentNode.offsetWidth / 2) + "px",
+            height:
+              Math.floor(winRef.parentNode.offsetHeight) / 2 -
+              (snapBoxMargin * 2 + 48) +
+              "px",
+            top: `${snapBoxMargin}px`,
+            left: `${snapBoxMargin}px`,
+          }
+        );
+        winRef.dataset.snapPos = "top-left";
+      } else if (
+        newPositionX + winRef.offsetWidth >
+          winRef.parentNode.offsetWidth - snapMargin &&
+        newPositionY < snapMargin
+      ) {
+        // Top right.
+        if (Html.qs(".debug")) {
+          Html.qs(".debug").text("snap: TOP RIGHT");
+        }
+        animateSnapIndicator(
+          "top-right",
+          {
+            opacity: 1,
+            top: winRef.style.top,
+            left: winRef.style.left,
+            width: winRef.style.width,
+            height: winRef.style.height,
+          },
+          {
+            opacity: 1,
+            width: Math.floor(winRef.parentNode.offsetWidth / 2) + "px",
+            height:
+              Math.floor(winRef.parentNode.offsetHeight) / 2 -
+              (snapBoxMargin * 2 + 48) +
+              "px",
+            top: `${snapBoxMargin}px`,
+            left:
+              winRef.parentNode.offsetWidth -
+              Math.floor(winRef.parentNode.offsetWidth / 2) +
+              snapBoxMargin +
+              "px",
+          }
+        );
+        winRef.dataset.snapPos = "top-right";
+      } else if (
+        newPositionX < snapMargin &&
+        winRef.offsetTop + winRef.offsetHeight >
+          winRef.parentNode.offsetHeight - snapMargin
+      ) {
+        // Bottom left.
+        if (Html.qs(".debug")) {
+          Html.qs(".debug").text("snap: BOTTOM LEFT");
+        }
+        animateSnapIndicator(
+          "bottom-left",
+          {
+            opacity: 1,
+            top: winRef.style.top,
+            left: winRef.style.left,
+            width: winRef.style.width,
+            height: winRef.style.height,
+          },
+          {
+            opacity: 1,
+            width: Math.floor(winRef.parentNode.offsetWidth / 2) + "px",
+            height:
+              Math.floor(winRef.parentNode.offsetHeight) / 2 -
+              (snapBoxMargin * 2 + 48) +
+              "px",
+            top:
+              Math.floor(winRef.parentNode.offsetHeight / 2) +
+              snapBoxMargin +
+              "px",
+            left: snapBoxMargin + "px",
+          }
+        );
+        winRef.dataset.snapPos = "bottom-left";
+      } else if (
+        newPositionX + winRef.offsetWidth >
+          winRef.parentNode.offsetWidth - snapMargin &&
+        winRef.offsetTop + winRef.offsetHeight >
+          winRef.parentNode.offsetHeight - snapMargin
+      ) {
+        // Bottom right.
+        if (Html.qs(".debug")) {
+          Html.qs(".debug").text("snap: BOTTOM RIGHT");
+        }
+        animateSnapIndicator(
+          "bottom-right",
+          {
+            opacity: 1,
+            top: winRef.style.top,
+            left: winRef.style.left,
+            width: winRef.style.width,
+            height: winRef.style.height,
+          },
+          {
+            opacity: 1,
+            width: Math.floor(winRef.parentNode.offsetWidth / 2) + "px",
+            height:
+              Math.floor(winRef.parentNode.offsetHeight) / 2 -
+              (snapBoxMargin * 2 + 48) +
+              "px",
+            top:
+              Math.floor(winRef.parentNode.offsetHeight / 2) +
+              snapBoxMargin +
+              "px",
+            left:
+              winRef.parentNode.offsetWidth -
+              Math.floor(winRef.parentNode.offsetWidth / 2) +
+              snapBoxMargin +
+              "px",
+          }
+        );
+        winRef.dataset.snapPos = "bottom-right";
+      } else if (newPositionY < snapMargin) {
+        // Top.
+        if (Html.qs(".debug")) {
+          Html.qs(".debug").text("snap: top");
+        }
         animateSnapIndicator(
           "top",
           {
@@ -523,7 +794,10 @@ function WinDrag(e) {
         );
         winRef.dataset.snapPos = "top";
       } else if (newPositionX < snapMargin) {
-        // Html.qs(".debug").text("snap: left");
+        // Left.
+        if (Html.qs(".debug")) {
+          Html.qs(".debug").text("snap: left");
+        }
         animateSnapIndicator(
           "top",
           {
@@ -547,9 +821,12 @@ function WinDrag(e) {
         newPositionX + winRef.offsetWidth >
         winRef.parentNode.offsetWidth - snapMargin
       ) {
-        // Html.qs(".debug").text("snap: right");
+        // Right.
+        if (Html.qs(".debug")) {
+          Html.qs(".debug").text("snap: right");
+        }
         animateSnapIndicator(
-          "top",
+          "right",
           {
             opacity: 1,
             top: winRef.style.top,
@@ -575,7 +852,10 @@ function WinDrag(e) {
         );
         winRef.dataset.snapPos = "right";
       } else {
-        // Html.qs(".debug").text("snap: NONE");
+        // No snap.
+        if (Html.qs(".debug")) {
+          Html.qs(".debug").text("snap: NONE");
+        }
         hideSnapIndicator();
         winRef.dataset.snapPos = "";
       }
@@ -630,6 +910,18 @@ function EndWinDrag() {
       let wo = getWindowObjectById(winRef.dataset.windowId);
 
       switch (snapPos) {
+        case "top-left":
+          wo.maximize("top-left");
+          break;
+        case "top-right":
+          wo.maximize("top-right");
+          break;
+        case "bottom-left":
+          wo.maximize("bottom-left");
+          break;
+        case "bottom-right":
+          wo.maximize("bottom-right");
+          break;
         case "top":
           wo.maximize("top");
           break;
@@ -662,6 +954,14 @@ document.addEventListener("touchend", EndWinDrag);
 
 document.addEventListener("mousemove", WinDrag);
 document.addEventListener("touchmove", WinDrag);
+
+window.addEventListener("resize", () => {
+  if (Html.qs(".window-box") !== null) {
+    Html.qsa(".window-box .win-window").forEach((x) => {
+      adjustWindow(x.elm);
+    });
+  }
+});
 
 function handleFocus(e) {
   var x = e.target.closest(".win-window");

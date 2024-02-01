@@ -1,10 +1,13 @@
-# Pluto v1.4
+# ShadeOS v1.5
 
-![Pluto banner](assets/images/banner.svg)
+![ShadeOS banner](assets/images/banner.svg)
 
-Pluto is a minimal but functional "web OS" that aims to provide a desktop environment-like experience inside of a website.
+ShadeOS is a minimal but functional "web OS" that aims to provide a desktop environment-like experience inside of a website.
 
-![Pluto banner](assets/images/screenshot2.png)
+<picture>
+  <source media="(prefers-color-scheme: light)" srcset="assets/images/ss_light.png">
+  <img src="assets/images/ss_dark.png">
+</picture>
 
 ## Features
 

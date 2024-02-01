@@ -1,5 +1,7 @@
 import ctxMenu from "../lib/CtxMenu.js";
 
+let localforage = window.localforage;
+
 export default {
   name: "File Manager",
   description:
@@ -23,8 +25,10 @@ export default {
     const Win = (await L.loadLibrary("WindowSystem")).win;
     const FileMappings = await L.loadLibrary("FileMappings");
 
+    const appName = Root.Lib.getString("systemApp_FileManager");
+
     win = new Win({
-      title: "Files",
+      title: appName,
       pid: Root.PID,
       width: "468px",
       height: "320px",
@@ -44,121 +48,186 @@ export default {
 
     let path = "Root";
 
-    Sidebar.new(wrapper, [
-      {
-        onclick: async (_) => {
-          if (path === "Root") return;
+    let sidebarWrapper = new Root.Lib.html("div")
+      .styleJs({ display: "flex" })
+      .appendTo(wrapper);
 
-          let p = await vfs.getParentFolder(path);
-          path = p;
-          renderFileList(p);
+    function makeSidebar() {
+      sidebarWrapper.clear();
+      Sidebar.new(sidebarWrapper, [
+        {
+          onclick: async (_) => {
+            if (path === "Root") return;
+
+            let p = await vfs.getParentFolder(path);
+            path = p;
+            renderFileList(p);
+          },
+          html: L.icons.arrowUp,
+          title: "Up a directory",
         },
-        html: L.icons.arrowUp,
-        title: "Up a directory",
-      },
-      {
-        onclick: async (_) => {
-          let result = await Root.Modal.input(
-            "Input",
-            "New folder name",
-            "New folder"
-          );
-          if (result === false) return;
-          result = result.replace(/\//g, "");
-          await vfs.createFolder(path + "/" + result);
+        {
+          onclick: async (_) => {
+            let result = await Root.Modal.input(
+              "Input",
+              "New folder name",
+              "New folder"
+            );
+            if (result === false) return;
+            result = result.replace(/\//g, "");
+            await vfs.createFolder(path + "/" + result);
+            renderFileList(path);
+          },
+          html: L.icons.createFolder,
+          title: "Create Folder",
         },
-        html: L.icons.createFolder,
-        title: "Create Folder",
-      },
-      {
-        onclick: async (_) => {
-          let result = await Root.Modal.input(
-            "Input",
-            "New file name",
-            "New file"
-          );
-          if (result === false) return;
-          result = result.replace(/\//g, "");
-          await vfs.writeFile(path + "/" + result, "");
+        {
+          onclick: async (_) => {
+            let result = await Root.Modal.input(
+              "Input",
+              "New file name",
+              "New file"
+            );
+            if (result === false) return;
+            result = result.replace(/\//g, "");
+            await vfs.writeFile(path + "/" + result, "");
+            renderFileList(path);
+          },
+          html: L.icons.createFile,
+          title: "Create File",
         },
-        html: L.icons.createFile,
-        title: "Create File",
-      },
-      {
-        onclick: async (_) => {
-          let result = await Root.Modal.input(
-            "Go to Folder",
-            "Enter folder path",
-            "Path",
-            wrapper,
-            false,
-            path
-          );
-          if (result === false) return;
-          path = result;
-          renderFileList(path);
+        {
+          onclick: async (_) => {
+            let result = await Root.Modal.input(
+              "Go to Folder",
+              "Enter folder path",
+              "Path",
+              wrapper,
+              false,
+              path
+            );
+            if (result === false) return;
+            path = result;
+            renderFileList(path);
+          },
+          html: L.icons.dir,
+          title: "Go to Folder",
         },
-        html: L.icons.dir,
-        title: "Go to Folder",
-      },
-      {
-        onclick: (_) => {
-          var input = new Root.Lib.html("input").elm;
-          input.type = "file";
+        {
+          onclick: async (_) => {
+            if (!selectedItem) return;
+            let i = await vfs.whatIs(selectedItem);
+            if (i === "dir")
+              return Root.Modal.alert(
+                "Error",
+                "Folder download is not yet supported.",
+                wrapper
+              );
+            let text = await vfs.readFile(selectedItem, undefined, true);
 
-          input.onchange = (e) => {
-            // getting a hold of the file reference
-            var file = e.target.files[0];
-            var reader = new FileReader();
+            // boilerplate download code
+            var element = document.createElement("a");
+            element.setAttribute(
+              "href",
+              "data:text/plain;charset=utf-8," + encodeURIComponent(text)
+            );
+            element.setAttribute("download", selectedItem.split("/").pop());
+            element.style.display = "none";
+            document.body.appendChild(element);
+            element.click();
+            document.body.removeChild(element);
+            renderFileList(path);
+          },
+          html: L.icons.download,
+          title: "Download File",
+        },
+        {
+          onclick: (_) => {
+            var input = new Root.Lib.html("input").elm;
+            input.type = "file";
 
-            if (
-              file.type.startsWith("image") ||
-              file.type.startsWith("audio") ||
-              file.type.startsWith("video")
-            ) {
-              // read as arraybuffer; store as base64
-              reader.readAsDataURL(file);
+            input.onchange = (e) => {
+              // getting a hold of the file reference
+              var file = e.target.files[0];
+              var reader = new FileReader();
 
-              // here we tell the reader what to do when it's done reading...
-              reader.onload = async (readerEvent) => {
-                var content = readerEvent.target.result; // this is the content!
-                await vfs.writeFile(`Root/${file.name}`, content);
-              };
-            } else {
-              // read as text
-              reader.readAsText(file, "UTF-8");
+              if (
+                file.type.startsWith("image") ||
+                file.type.startsWith("audio") ||
+                file.type.startsWith("video")
+              ) {
+                console.log(file);
+                // read as arraybuffer; store as base64
+                // reader.readAsDataURL(file);
+                reader.readAsArrayBuffer(file);
 
-              // here we tell the reader what to do when it's done reading...
-              reader.onload = async (readerEvent) => {
-                var content = readerEvent.target.result; // this is the content!
-                await vfs.writeFile(`${path}/${file.name}`, content);
-              };
+                // here we tell the reader what to do when it's done reading...
+                reader.onload = async (readerEvent) => {
+                  // var content = readerEvent.target.result; // this is the content!
+                  const blob = new Blob([readerEvent.target.result], {
+                    type: file.type,
+                  });
+
+                  const filePath = `${Root.Lib.randomString()}-${file.name}`;
+
+                  await localforage.setItem(filePath, blob);
+
+                  await vfs.writeFile(
+                    `${path}/${file.name}`,
+                    `vfsImport:${filePath}`
+                  );
+
+                  renderFileList(path);
+                };
+              } else {
+                // read as text
+                reader.readAsText(file, "UTF-8");
+
+                // here we tell the reader what to do when it's done reading...
+                reader.onload = async (readerEvent) => {
+                  var content = readerEvent.target.result; // this is the content!
+
+                  const filePath = `${Root.Lib.randomString()}-${file.name}`;
+
+                  await localforage.setItem(filePath, content);
+
+                  await vfs.writeFile(
+                    `${path}/${file.name}`,
+                    `vfsImport:${filePath}`
+                  );
+
+                  renderFileList(path);
+                };
+              }
+            };
+
+            input.click();
+          },
+          html: L.icons.upload,
+          title: "Upload File from Host",
+        },
+        {
+          onclick: async (_) => {
+            if (!selectedItem) return;
+            let i = await vfs.whatIs(selectedItem);
+            let result = await Root.Modal.prompt(
+              "Notice",
+              `Are you sure you want to delete this ${
+                i === "dir" ? "folder" : "file"
+              }?`
+            );
+            if (result === true) {
+              await vfs.delete(selectedItem);
+              renderFileList(path);
             }
-          };
+          },
+          html: L.icons.delete,
+          title: "Delete File",
+        },
+      ]);
+    }
 
-          input.click();
-        },
-        html: L.icons.import,
-        title: "Import file from your system",
-      },
-      {
-        onclick: async (_) => {
-          if (!selectedItem) return;
-          let i = await vfs.whatIs(selectedItem);
-          let result = await Root.Modal.prompt(
-            "Notice",
-            `Are you sure you want to delete this ${
-              i === "dir" ? "folder" : "file"
-            }?`
-          );
-          if (result === true) {
-            await vfs.delete(selectedItem);
-          }
-        },
-        html: L.icons.delete,
-        title: "Delete File",
-      },
-    ]);
+    makeSidebar();
 
     const wrapperWrapper = new L.html("div")
       .class("col", "w-100", "ovh")
@@ -171,7 +240,7 @@ export default {
       if (e.target.closest("tr")) return;
       e.preventDefault();
 
-      ctxMenu.new(e.clientX, e.clientY, [
+      ctxMenu.data.new(e.clientX, e.clientY, [
         {
           item: "Copy path",
           async select() {
@@ -207,11 +276,11 @@ export default {
 
       if (isFolder !== "dir") {
         path = "Root/";
-        return renderFileList();
+        return renderFileList(path);
       }
       // return renderFileList(await vfs.getParentFolder(folder));
 
-      setTitle("Files - " + folder);
+      setTitle(appName + " - " + folder);
       let fileList = await vfs.list(folder);
 
       const mappings = await Promise.all(
@@ -229,13 +298,31 @@ export default {
 
         tableBodyRow.on("contextmenu", (e) => {
           e.preventDefault();
-          ctxMenu.new(e.clientX, e.clientY, [
+          ctxMenu.data.new(e.clientX, e.clientY, [
             {
               item: "Open",
               async select() {
                 mapping.onClick(Root.Core);
               },
             },
+            mapping.ctxMenuApp !== undefined
+              ? {
+                  item: `Open in ${Root.Lib.getString(
+                    mapping.ctxMenuApp.name
+                  )}`,
+                  async select() {
+                    const p = await Root.Core.startPkg(
+                      mapping.ctxMenuApp.launch,
+                      true,
+                      true
+                    );
+                    p.proc.send({
+                      type: "loadFile",
+                      path: path + "/" + file.item,
+                    });
+                  },
+                }
+              : null,
             {
               item: "Copy path",
               async select() {
@@ -251,17 +338,24 @@ export default {
             {
               item: "Rename",
               async select() {
-                const result = Root.Modal.prompt(
+                let result = await Root.Modal.input(
                   "Rename File",
-                  `Rename ${file.item} to...`
+                  `Rename ${file.item} to...`,
+                  file.item,
+                  wrapper,
+                  false,
+                  file.item
                 );
-                console.log(result);
+                // clean result
+                result = result.replace(/\//g, "");
+                await vfs.rename(`${path}/${file.item}`, `${result}`);
+                renderFileList(path);
               },
             },
             {
               item: "Delete",
               async select() {
-                await vfs.delete(`${currentPath}/${file.item}`);
+                await vfs.delete(`${path}/${file.item}`);
               },
             },
           ]);
@@ -308,7 +402,11 @@ export default {
           .style({ width: "24px", height: "24px" })
           .append(
             new Root.Lib.html("div")
-              .html(Root.Lib.icons[mapping.icon])
+              .html(
+                mapping.icon in Root.Lib.icons
+                  ? Root.Lib.icons[mapping.icon]
+                  : mapping.icon
+              )
               .style({ width: "24px" })
           )
           .appendTo(tableBodyRow);
@@ -328,7 +426,15 @@ export default {
 
     await renderFileList(path);
 
-    return L.setupReturns((m) => {
+    return L.setupReturns(async (m) => {
+      if (m && m.type) {
+        if (m.type === "refresh") {
+          Root.Lib.getString = m.data;
+          win.setTitle(Root.Lib.getString("systemApp_FileManager"));
+          Root.Lib.updateProcTitle(Root.Lib.getString("systemApp_FileManager"));
+          makeSidebar();
+        }
+      }
       if (
         typeof m === "object" &&
         m.type &&

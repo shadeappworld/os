@@ -2,7 +2,7 @@ let hashGen = new window.Hashes.SHA512();
 
 export default {
   name: "Login Screen",
-  description: "Login screen for Pluto",
+  description: "Login screen for ShadeOS",
   privileges: 1,
 
   ver: 1, // Compatible with core v1
