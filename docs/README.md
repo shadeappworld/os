@@ -1,21 +1,35 @@
-# Pluto Documentation for version 1.3 (Elysium)
+# Pluto Documentation for version 1.5 (Elysium)
 
-- [Pluto Documentation for version 1.3 (Elysium)](#pluto-documentation-for-version-13-elysium)
+- [Pluto Documentation for version 1.5 (Elysium)](#pluto-documentation-for-version-15-elysium)
+  - [Links to other useful documentation](#links-to-other-useful-documentation)
   - [How to initialize an application](#how-to-initialize-an-application)
     - [Export properties](#export-properties)
     - [Example App code](#example-app-code)
   - [What is Root?](#what-is-root)
   - [What are app permissions?](#what-are-app-permissions)
     - [Permissions](#permissions)
+  - [Listening to events](#listening-to-events)
   - [Html library](#html-library)
     - [Examples](#examples)
     - [Methods](#methods)
+  - [Using Services in your apps](#using-services-in-your-apps)
+    - [Using the Account service](#using-the-account-service)
   - [Using libraries/components in your apps](#using-librariescomponents-in-your-apps)
   - [Recent breaking changes to apps](#recent-breaking-changes-to-apps)
+    - [Tray usage](#tray-usage)
 
 This documentation will help you understand how to make apps for Pluto, and include the API reference.
 
 This guide may change often, so to help you in making applications, use the latest documentation for your version.
+
+## Links to other useful documentation
+
+There are some other docs in this folder that may be useful.
+
+[VirtualFS Documentation](virtualFS.md)
+[Libraries and Components](libs-and-components.md)
+[Localization](localization.md)
+[CSS Classes](css-classes.md)
 
 ## How to initialize an application
 
@@ -107,17 +121,34 @@ Here's a breakdown of what the Root object looks like:
 ```ts
 interface Root {
   Lib: {
+    getProcessList: function();
+    getString: async function(
+      title: string,
+      description
+    );
     html: class Html;
     icons: Icons;
+    langs: string[];
+    launch: async function(app, parent);
+    loadComponent: async function loadComponent(cmp);​​
+    loadLibrary: async function loadLibrary(lib);​​
+    onEnd: function onEnd();​​
+    onEndCallback: function exec(_);​​
+    randomString: function randomString(_)​​
+    setOnEnd: function setOnEnd(onEndCallback);​​
+    setupReturns: function setupReturns(onMessage, trayInfo);​​​​
     systemInfo: {
       version: number;
       versionString: string;
       codename: string;
     }
+    updateProcDesc: function updateProcDesc(newDescription);​​
+    updateProcTitle: function updateProcTitle(newTitle);
   };
   Core: Core | null;
   PID: number;
   Token: string;
+  Services: null;
   Modal: {
     modal:
       async function(
@@ -149,7 +180,6 @@ interface Root {
         isPassword: boolean = false
       );
   };
-  Services: Service[];
 }
 ```
 
@@ -186,6 +216,54 @@ privileges: [
 ],
 ```
 
+## Listening to events
+
+This is an advanced process feature that allows you to listen to core events (package start, end, etc.) and respond to them.
+
+Here's an example of it in use in an app:
+
+```js
+export default {
+  name: "Spacedesktop",
+  description: "A desktop replacement for Pluto",
+  ver: 1, // Compatible with core v1
+  type: "process",
+  optInToEvents: true, // <-- Opt in to events
+  privileges: [
+    {
+      privilege: "full",
+      description: "Allow Spacedesktop to manage your desktop.",
+    },
+  ],
+  exec: async function (Root) {
+    // ...
+
+    return Root.Lib.setupReturns((m) => {
+      const { type, data } = m;
+
+      console.log(type, data);
+
+      // here!
+      switch (type) {
+        case "coreEvent":
+          if (data.type === "pkgStart") {
+            const name = data.data.proc.name;
+            const pid = data.data.pid;
+
+            // ...
+          } else if (data.type === "pkgEnd") {
+            const name = data.data.proc.name;
+            const pid = data.data.pid;
+
+            // ...
+          }
+          break;
+      }
+    });
+  },
+};
+```
+
 ## Html library
 
 The Html library is a class that can be initialized at any time to create HTML elements in a simple way.
@@ -195,6 +273,15 @@ The Html library is a class that can be initialized at any time to create HTML e
 ```js
 const Html = Root.Lib.html;
 ```
+
+You can also import Html from datkat21's source using unpkg:
+
+```js
+const Html = (await import("https://unpkg.com/@datkat21/html")).default;
+```
+
+This is recommended if you want to use the latest features of Html (e.g. prepend, prependMany, prependTo).  
+This will ensure the Html library is always up to date, no matter the version of Pluto the app is running on.
 
 ### Examples
 
@@ -244,6 +331,8 @@ This will create the following layout:
 
 There are a few more advanced methods to how the Html class works:
 
+**Note: Some methods may not be available in older versions of Pluto, and some methods may not work unless you use the [latest version of Html](#html-library).**
+
 - `.style()`  
    Add inline styles
   ```js
@@ -252,6 +341,17 @@ There are a few more advanced methods to how the Html class works:
     // These are CSS style names,
     // so you will have to use dashes..
     "font-size": "18px",
+    // Another example
+    "backdrop-filter": "blur(4px)",
+  });
+  ```
+- `.styleJs()`  
+   Add inline styles (JS syntax)
+  ```js
+  new Html("span").styleJs({
+    color: "red",
+    fontSize: "18px",
+    backdropFilter: "blur(4px)",
   });
   ```
 - `.attr()`  
@@ -263,13 +363,13 @@ There are a few more advanced methods to how the Html class works:
   // <span id="MySpan"></span>
   ```
 - `.class()`  
-   Toggle a class
+   Toggle a class (on/off)
   ```js
   new Html("span").class("my-class");
   // <span class="my-class"></span>
   ```
 - `.classOn()`  
-   Add a class
+   Add a class (Recommended to use over `.class()`)
   ```js
   new Html("span").classOn("my-class");
   // <span class="my-class"></span>
@@ -279,6 +379,12 @@ There are a few more advanced methods to how the Html class works:
   ```js
   new Html("span").classOff("my-class");
   // <span></span>
+  ```
+- `.id()`  
+   Set the id of an element
+  ```js
+  new Html("div").id("my-id");
+  // <div id="my-id"></div>
   ```
 - `.on(eventName, eventHandler)`  
    Add an event listener
@@ -297,8 +403,43 @@ There are a few more advanced methods to how the Html class works:
   });
   ```
 
-- `.un(eventName, eventHandler)`  
-   Remove an event listener (if a function is available)
+- `.un(eventName, eventHandler)`
+- `.prepend(elm)`
+  Add a new element to the beginning of the element
+  ```js
+  const container = new Html("div").prepend(
+    new Html("span").text("Hello, world!")
+  );
+  ```
+- `.prependMany(...elms)`
+  Add multiple elements to the start
+  ```js
+  new Html("div").prependMany(
+    new Html("span").class("h1").text("Hello!"),
+    new Html("span").text("Hi!")
+  );
+  /*
+  <div>
+    <span class="h1">Hello!</span>
+    <span>Hi!</span>
+  </div>
+  */
+  ```
+- `.prependTo()`
+  Prepend the element to the beginning of another element
+
+  ```js
+  new Html("div").prependTo("body");
+
+  /*
+  <body>
+    <div></div>
+    <p>Hello</p>
+  </body>
+  */
+  ```
+
+  Remove an event listener (if a function is available)
 
   ```js
   function myEvent(e) {
@@ -329,6 +470,20 @@ There are a few more advanced methods to how the Html class works:
   </div>
   */
   ```
+- `.appendTo()`
+  Append the element to another element
+
+  ```js
+  new Html("div").appendTo("body");
+
+  /*
+  <body>
+    <p>Hello</p>
+    <div></div>
+  </body>
+  */
+  ```
+
 - `.cleanup()`  
   Destroy the element
 
@@ -339,11 +494,82 @@ There are a few more advanced methods to how the Html class works:
   div.cleanup();
   ```
 
+- `.swapRef(elm)`  
+  Swap the element reference with a new one
+
+  ```js
+  const div = new Html("div").appendTo("body");
+
+  const div2 = document.querySelector("body > div.two");
+
+  div.swapRef(div2); // div now references div2
+  ```
+
+- `.getText()`
+  Get text of the element
+
+  ```js
+  const div = new Html("div").text("This is my text...");
+
+  div.getText(); // 'This is my text...'
+  ```
+
+- `.getHtml()`
+  Get HTML content of the element
+
+  ```js
+  const div = new Html("div").html("<p>This is my <b>HTML</b> content...</p>");
+
+  div.getHtml(); // '<p>This is my <b>HTML</b> content...</p>'
+  ```
+
+- `.getValue()`
+  Ditto, but for the value of an input tag.
+
+## Using Services in your apps
+
+Currently, there is only one usable service: Account. This service handles Zeon account status and login.
+
+### Using the Account service
+
+You will need the `services` privilege:
+
+```js
+export default {
+  // ...
+  privileges: [
+    {
+      privilege: "services",
+      description: "Use the Zeon account service",
+    },
+  ],
+  // ...
+};
+```
+
+You can check in your app code for the service's existence:
+
+```js
+let service = Root.Core.services.find((x) => x.name === "Account");
+if (service && service.ref) {
+  // your code here
+}
+```
+
+The Account service has the following methods:
+
+- `async login(user, pass)`
+  Log in to a Zeon account with its username and password. This is an asynchronous function.
+- `logout()`
+  Log out of the current Zeon account.
+- `getUserData()`
+  Retrieve current user account data. Returns invalid data if a user is not logged in. Check using `.onlineAccount` (true if logged in, false if not) on the returned object.
+
 ## Using libraries/components in your apps
 
-Libraries and components add extra functionality into your apps and make a easy, reusable way to do a certain thing.
+[**Read more on the updated components and libraries documentation here.**](libs-and-components.md)
 
-Read the [Libraries and Components documentation](docs/libs-and-components.md).
+Libraries and components add extra functionality into your apps and make an easy, reusable way to do a certain thing.
 
 For example, the VirtualFS library can be used to read the file system:
 
@@ -356,7 +582,8 @@ await vfs.importFS();
 const fileContent = await vfs.readFile("Root/myFile.txt");
 ```
 
-More documentation on VirtualFS [can be found here](docs/virtualFS.md).
+More documentation on VirtualFS [can be found here](virtualFS.md).
+
 
 ## Recent breaking changes to apps
 
@@ -371,3 +598,31 @@ More documentation on VirtualFS [can be found here](docs/virtualFS.md).
   ```
 
   - Remember the process cleans up after itself so you only need to cleanup any elements or intervals you have made when initializing.
+
+### Tray usage
+
+- Early 1.5 core uses the second parameter of `setupReturns` to declare tray items.
+
+  Pass in an argument as follows:
+
+  ```js
+  {
+    icon: "/* SVG data for icon (in XML) */",
+  },
+  ```
+
+  Clicking your tray item will send a `context-menu` message to your app.  
+  Here's how to handle it (inside the first parameter of `setupReturns`):
+
+  ```js
+  if (m.type && m.type === "context-menu") {
+    CtxMenu.new(m.x, m.y, [
+      {
+        item: "item text",
+        select: async () => {
+          // Your code
+        },
+      },
+    ]);
+  }
+  ```
