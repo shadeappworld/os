@@ -52,5 +52,12 @@
     ></script>
     <script src="./assets/localforage.min.js"></script>
     <script defer src="core.js"></script>
+
+    <script>
+  if (typeof navigator.serviceWorker !== 'undefined') {
+    navigator.serviceWorker.register('sw.js')
+  }
+    </script>
+    
   </body>
 </html>
