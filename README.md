@@ -1,6 +1,6 @@
-# ShadeOS v1.5
+# ShadeOS v1
 
-![ShadeOS banner](assets/images/banner.svg)
+Available to use this weekend!
 
 ShadeOS is a minimal but functional "web OS" that aims to provide a desktop environment-like experience inside of a website.
 
