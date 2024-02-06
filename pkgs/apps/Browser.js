@@ -194,7 +194,7 @@ export default {
         });
         new Root.Lib.html("iframe")
           .attr({
-            src: `//${location.host}/assets/browserhp.html`,
+            src: `//${location.host}/inlinemagic/index.html`,
           })
           .class("fg", "page-" + selectedTab)
           .on("load", async (e) => {
@@ -338,7 +338,7 @@ export default {
         // there's a good reason i did this, it's called browser compatibility
         // style:
         //   "width:-webkit-fill-available;width:-moz-fill-available;height:-webkit-fill-available;height:-moz-fill-available;",
-        src: `//${location.host}/assets/browserhp.html`,
+        src: `//${location.host}/inlinemagic/index.html`,
       })
       .class("fg", "page-1")
       .appendTo(pages);
@@ -401,7 +401,7 @@ export default {
       .attr({
         type: "input",
         // style: "width:-webkit-fill-available;width:-moz-fill-available;",
-        value: "http://www.google.com/webhp?igu=1",
+        value: "https://shadeappworld.github.io/oldmusic/smagic.html",
       })
       .class("url")
       .on("keydown", async (e) => {
