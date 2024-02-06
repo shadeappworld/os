@@ -4,7 +4,7 @@ let findEmptyInList = function (list) {
 };
 
 export default {
-  name: "Browser",
+  name: Inline Magic Appstore,
   description: "Search the internet.",
   ver: 1, // Compatible with core v1
   type: "process",

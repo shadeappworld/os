@@ -63,7 +63,7 @@ export default {
       },
       {
         localizedName: "systemApp_Browser",
-        name: "Browser",
+        name: Inline Magic Appstore,
         icon: "globe",
         fullName: "apps:Browser",
       },
