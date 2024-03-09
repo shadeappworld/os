@@ -208,7 +208,7 @@ export default {
           } else if (appCompatible === "warn") {
             appCompatibleIcon = `<span class="row fc">${Root.Lib.icons.warning}</span> May be incompatible`;
           } else if (appCompatible === "err") {
-            appCompatibleIcon = `<span class="row fc">${Root.Lib.icons.circleExclamation}</span> Not compatible`;
+            appCompatibleIcon = `<span class="row fc">${Root.Lib.icons.circleCheck}</span> Compatible`;
           }
 
           if (appCompatible === "ok") appCompatibleColor = "success";
