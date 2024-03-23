@@ -7,6 +7,12 @@ export default {
   description: "Backdrop user interface",
   ver: 1, // Compatible with core v1
   type: "process",
+  privileges: [
+    {
+      privilege: "processList",
+      description: "Send messages to applications",
+    },
+  ],
   optInToEvents: true,
   exec: async function (Root) {
     let wrapper; // Lib.html | undefined
@@ -61,6 +67,10 @@ export default {
 
     const iconsWrapper = new Root.Lib.html("div")
       .class("desktop-apps")
+      .style({
+        transition:
+          "opacity var(--long-animation-duration) var(--easing-function)",
+      })
       .appendTo(wrapper);
 
     if (localStorage.getItem("oldVFS")) {
@@ -227,6 +237,11 @@ export default {
       )
       .appendTo(dock);
 
+    let assistantButton = new Root.Lib.html("button")
+      .class("toolbar-button", "assistant", "border-right")
+      .html(Root.Lib.icons.plutoAssistant)
+      .appendTo(dock);
+
     let menuIsOpen = false;
     let menuIsToggling = false;
     let menuElm;
@@ -245,10 +260,7 @@ export default {
 
       if (ev.target.closest(".menu")) {
         if (ev.button === 0) {
-          if (
-            ev.target.closest(".menu button") ||
-            ev.target.closest(".menu .app")
-          ) {
+          if (ev.target.closest(".menu .app")) {
             toggleMenu();
           }
         }
@@ -260,6 +272,79 @@ export default {
     const userAccountService = Root.Core.services
       .filter((x) => x !== null)
       .find((x) => x.name === "Account");
+
+    async function logout() {
+      const appsToClose = Root.Core.processList
+        .filter((f) => f !== null)
+        .filter(
+          (f) => f.name.startsWith("apps:") || f.name.startsWith("none:")
+        );
+
+      if (appsToClose.length > 0) {
+        const result = await Root.Modal.prompt(
+          "Are you sure you want to end this session? You will lose all unsaved changes."
+        );
+
+        if (!result) return;
+      }
+
+      sessionStorage.removeItem("userData");
+
+      wrapper.elm.style.setProperty("pointer-events", "none", "important");
+      background.style({ opacity: 0 });
+      iconsWrapper.style({ opacity: 0 });
+      dock.classOn("hiding");
+
+      const x = await new Promise(async (resolve, reject) => {
+        resolve(
+          await Promise.all(
+            appsToClose.map((a) => {
+              return new Promise((resolve, reject) => {
+                a.proc.end();
+                resolve(true);
+              });
+            })
+          )
+        );
+      });
+
+      console.log("closed all apps");
+
+      setTimeout(async () => {
+        Root.Lib.onEnd();
+        sessionStorage.removeItem("skipLogin");
+        const lgs = await Root.Core.startPkg("ui:ActualLoginScreen");
+
+        let themeLib = await Root.Core.startPkg("lib:ThemeLib");
+
+        await lgs.launch();
+        await Root.Core.startPkg("ui:Desktop", true, true);
+
+        if (
+          appearanceConfig.theme &&
+          appearanceConfig.theme.endsWith(".theme")
+        ) {
+          const x = themeLib.validateTheme(
+            await vfs.readFile(
+              "Root/Pluto/config/themes/" + appearanceConfig.theme
+            )
+          );
+
+          if (x !== undefined && x.success === true) {
+            console.log(x);
+
+            themeLib.setCurrentTheme(x.data);
+          } else {
+            console.log(x.message);
+            document.documentElement.dataset.theme = "dark";
+          }
+        } else {
+          themeLib.setCurrentTheme(
+            '{"version":1,"name":"Dark","description":"A built-in theme.","values":null,"cssThemeDataset":"dark","wallpaper":"./assets/wallpapers/space.png"}'
+          );
+        }
+      }, 2000);
+    }
 
     async function toggleMenu() {
       if (menuIsToggling) {
@@ -391,6 +476,38 @@ export default {
             })
           );
 
+          let powerBtnPopup;
+          let powerBtnItems = [
+            {
+              item: Root.Lib.getString("refresh"),
+              async select() {
+                toggleMenu();
+
+                const result = await Root.Modal.prompt(
+                  "Are you sure you want to refresh? You will lose all unsaved changes."
+                );
+
+                if (result) location.reload();
+              },
+            },
+            {
+              item: Root.Lib.getString("lockScreen"),
+              async select() {
+                let lockScreen = await Root.Core.startPkg("ui:LockScreen");
+                toggleMenu();
+                await lockScreen.loader();
+              },
+            },
+            {
+              item: Root.Lib.getString("logoutSession"),
+              async select() {
+                toggleMenu();
+
+                await logout();
+              },
+            },
+          ];
+
           menuElm = new Html("div").class("menu").appendMany(
             new Html("div").class("me").appendMany(
               new Html("div").class("pfp").style({
@@ -411,19 +528,65 @@ export default {
               new Root.Lib.html("button")
                 .class("small")
                 .html(Root.Lib.icons.wrench)
-                .on("click", (e) => {
-                  Root.Core.startPkg("apps:Settings", true, true);
+                .on("click", async () => {
+                  await Root.Core.startPkg("apps:Settings", true, true);
+                  toggleMenu();
                 }),
               new Root.Lib.html("button")
                 .class("small")
-                .html(Root.Lib.icons.lock)
-                .on("click", async (e) => {
-                  let ls = await Root.Core.startPkg(
-                    "ui:LockScreen",
-                    true,
-                    true
-                  );
-                  ls.loader();
+                .html(Root.Lib.icons.power)
+                .on("mousedown", () => {
+                  powerBtnPopup.cleanup();
+                  powerBtnPopup = null;
+                })
+                .on("click", (e) => {
+                  if (powerBtnPopup) {
+                    powerBtnPopup.cleanup();
+                    powerBtnPopup = null;
+                  } else {
+                    const bcr = e.target.getBoundingClientRect();
+                    powerBtnPopup = ctxMenu.data
+                      .new(
+                        bcr.left,
+                        bcr.bottom,
+                        powerBtnItems.map((item) => {
+                          let text = `<span>${Root.Lib.escapeHtml(
+                            item.item
+                          )}</span>`;
+                          if (item.icon) {
+                            text = `${item.icon}<span>${Root.Lib.escapeHtml(
+                              item.item
+                            )}</span>`;
+                          }
+                          if (item.type !== undefined) {
+                            if (item.type === "separator") {
+                              return {
+                                item: "<hr>",
+                                selectable: false,
+                              };
+                            } else return item;
+                          }
+                          if (item.key !== undefined) {
+                            return {
+                              item:
+                                text +
+                                `<span class="ml-auto label">${item.key}</span>`,
+                              select: item.select,
+                            };
+                          } else {
+                            return { item: text, select: item.select };
+                          }
+                        }),
+                        null,
+                        document.body,
+                        true,
+                        true
+                      )
+                      .styleJs({
+                        minWidth: "150px",
+                      })
+                      .appendTo("body");
+                  }
                 })
             ),
             new Html("div")
@@ -460,12 +623,299 @@ export default {
 
     menuButton.on("click", toggleMenu);
 
+    const Assistant = await Root.Lib.loadLibrary("Assistant");
+
+    async function toggleAssistant() {
+      if (menuIsToggling) {
+        return; // Return early if menu is currently toggling
+      }
+
+      menuIsToggling = true;
+      menuIsOpen = !menuIsOpen;
+
+      if (menuIsOpen === true) {
+        window.addEventListener("mousedown", onClickDetect);
+        window.addEventListener("click", onFullClickDetect);
+        window.addEventListener("touchstart", onClickDetect);
+        window.addEventListener("touchend", onFullClickDetect);
+
+        if (!menuElm) {
+          const chatDiv = new Html("div")
+            .class("chat", "fg", "col", "w-100", "ovh")
+            .style({
+              margin: "1rem 0 0 0",
+              gap: "0.5rem",
+              "overflow-x": "hidden",
+            });
+          const chatInput = new Html("div").class(
+            "row",
+            "gap-md",
+            "w-100",
+            "mb-2"
+          );
+          const chatInputText = new Html("input")
+            .class("fg")
+            .attr({ type: "text", placeholder: "Ask a question..." })
+            .appendTo(chatInput);
+          const chatInputButton = new Html("button")
+            .class("primary")
+            .text("Ask")
+            .appendTo(chatInput);
+
+          menuElm = new Html("div")
+            .class("menu")
+            .appendMany(chatDiv, chatInput);
+
+          let firstMessage = true;
+
+          const apps = await Assistant.getApps();
+
+          const greetings = ["Hi", "Hey", "Hello"];
+          const whatCanYouDo = [
+            "What do you do",
+            "What can you do",
+            "How do you work",
+          ];
+          const howAreYou = ["How are you"];
+          const launch = [
+            "Open",
+            "Launch",
+            "Start",
+            "Can you start",
+            "Can you launch",
+            "Can you open",
+            "Can you run",
+            "Will you start",
+            "Will you launch",
+            "Will you open",
+            "Will you run",
+          ];
+          const logOut = [
+            "Logout",
+            "Log out",
+            "End this session",
+            "Exit this session",
+          ];
+          const versions = [
+            "What version of ShadeOS is this?",
+            "What ShadeOS version am I running?",
+          ];
+
+          function makeQuestionButton(text) {
+            let t = text;
+
+            if (t.includes("{greeting}")) {
+              t = t.replace(
+                "{greeting}",
+                greetings[Math.floor(greetings.length * Math.random())]
+              );
+            }
+            if (t.includes("{whatCanYouDo}")) {
+              t = t.replace(
+                "{whatCanYouDo}",
+                whatCanYouDo[Math.floor(Math.random() * whatCanYouDo.length)]
+              );
+            }
+            if (t.includes("{launchRandomApp}")) {
+              const launchStr =
+                launch[Math.floor(Math.random() * launch.length)];
+              const randomApp =
+                apps[Math.floor(apps.length * Math.random())].name;
+
+              if (launchStr.includes("you")) {
+                t = t.replace(
+                  "{launchRandomApp}",
+                  `${launchStr} ${randomApp}?`
+                );
+              } else {
+                t = t.replace(
+                  "{launchRandomApp}",
+                  `${launchStr} ${randomApp}.`
+                );
+              }
+            }
+            if (t.includes("{howAreYou}")) {
+              t = t.replace(
+                "{howAreYou}",
+                howAreYou[Math.floor(Math.random() * howAreYou.length)]
+              );
+            }
+            if (t.includes("{logOut}")) {
+              t = t.replace(
+                "{logOut}",
+                logOut[Math.floor(Math.random() * logOut.length)]
+              );
+            }
+            if (t.includes("{version}")) {
+              t = t.replace(
+                "{version}",
+                versions[Math.floor(Math.random() * versions.length)]
+              );
+            }
+
+            return new Html("button")
+              .class("row", "gap", "fc")
+              .appendMany(
+                new Html("span")
+                  .class("row")
+                  .html(Root.Lib.icons.send.replace(/"24"/g, '"16"')),
+                new Html("span").text(t)
+              )
+              .on("click", (e) => {
+                ask(t);
+              });
+          }
+
+          function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+              const j = Math.floor(Math.random() * (i + 1));
+              [array[i], array[j]] = [array[j], array[i]];
+            }
+          }
+
+          let randomQuestions = [];
+
+          randomQuestions.push(makeQuestionButton("{whatCanYouDo}?"));
+          randomQuestions.push(makeQuestionButton("{howAreYou}?"));
+          randomQuestions.push(makeQuestionButton("{logOut}."));
+          randomQuestions.push(makeQuestionButton("{greeting}!"));
+          randomQuestions.push(makeQuestionButton("{launchRandomApp}"));
+          randomQuestions.push(makeQuestionButton("{version}"));
+
+          shuffleArray(randomQuestions);
+
+          randomQuestions = randomQuestions.slice(0, 3);
+
+          const welcomeChatDiv = new Html("div")
+            .class("fc", "col", "gap", "slideUp", "fg")
+            .styleJs({
+              opacity: "0",
+              animationDelay: "var(--animation-duration)",
+            })
+            .appendMany(
+              new Html("span").html(
+                Root.Lib.icons.plutoAssistant.replace(/"24"/g, '"48"')
+              ),
+              new Html("span").class("h2").text("Pluto Assistant"),
+              new Html("span")
+                .styleJs({ textAlign: "center" })
+                .html(
+                  "Assistant is currently a work in progress.<br>It can help you perform some actions on Pluto."
+                ),
+              new Html("div").class("space"),
+              new Html("span").text("Try asking:"),
+              ...randomQuestions
+            )
+            .appendTo(chatDiv);
+          chatDiv.style({ "overflow-y": "hidden" });
+
+          welcomeChatDiv.on("animationend", () => {
+            chatDiv.style({ "overflow-y": "auto" });
+          });
+
+          function addMessage(side = 0, text) {
+            if (firstMessage === true) {
+              chatDiv.clear();
+              firstMessage = false;
+            }
+            let background, layout, classToAdd;
+
+            switch (side) {
+              case 0:
+                // left side, blue background
+                background = "var(--primary)";
+                layout = "flex-start";
+                classToAdd = "slideInFromLeft";
+                break;
+              case 1:
+                // right side, grey background
+                background = "var(--neutral)";
+                layout = "flex-end";
+                // classToAdd = "slideInFromRight";
+                classToAdd = "slideInFromRight";
+                break;
+            }
+
+            chatDiv.appendMany(
+              new Html("div")
+                .styleJs({
+                  display: "flex",
+                  alignSelf: layout,
+                  background,
+                  borderRadius: "16px",
+                  padding: "8px 14px",
+                })
+                .class(classToAdd)
+                .text(text)
+            );
+          }
+
+          async function ask(text = chatInputText.getValue()) {
+            chatInputText.val("");
+
+            if (text.trim() === "") return;
+
+            addMessage(1, text);
+
+            setTimeout(async () => {
+              const result = await Assistant.ask(text);
+              switch (result.type) {
+                case "response":
+                  addMessage(0, result.text);
+                  break;
+              }
+
+              chatDiv.elm.scrollTop = chatDiv.elm.scrollHeight;
+            }, 750 * Math.min(Math.max(0.5, Math.random()), 0.9));
+          }
+
+          chatInputText.on("keydown", (e) => {
+            if (e.key === "Enter") ask();
+          });
+          chatInputButton.on("click", ask);
+
+          dock.elm.insertBefore(menuElm.elm, dock.elm.lastChild);
+
+          chatInputText.elm.focus();
+        }
+
+        menuElm.classOn("opening");
+        setTimeout(() => {
+          menuElm.classOff("opening");
+          menuIsToggling = false;
+        }, 500);
+      } else {
+        window.removeEventListener("mousedown", onClickDetect);
+        window.removeEventListener("touchstart", onClickDetect);
+        if (menuElm) {
+          menuElm.classOn("closing");
+          setTimeout(() => {
+            menuElm.cleanup();
+            menuElm = null; // Reset menu element reference
+            menuIsToggling = false;
+          }, 500);
+        }
+      }
+    }
+
+    assistantButton.on("click", toggleAssistant);
+
     let dockItems = new Root.Lib.html("div").class("items").appendTo(dock);
     let dockItemsList = [];
 
     /* quickAccessButton */
     let timeInterval = -1;
     let pastMinute = 0;
+
+    function isEmpty(obj) {
+      for (const prop in obj) {
+        if (Object.hasOwn(obj, prop)) {
+          return false;
+        }
+      }
+
+      return true;
+    }
 
     function updateTime() {
       let x = new Date();
@@ -477,8 +927,131 @@ export default {
       quickAccessButtonText.text(timeString);
     }
 
+    let playerElm = new Html("div")
+      .styleJs({
+        background: "var(--neutral)",
+        width: "350px",
+        height: "150px",
+        position: "fixed",
+        bottom: "60px",
+        right: "14px",
+        borderRadius: "0.32rem",
+        display: "none",
+        padding: "8px",
+        gap: "8px",
+      })
+      .appendTo(wrapper);
+
+    let left = new Html("div")
+      .styleJs({
+        width: "50%",
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        display: "none",
+      })
+      .appendTo(playerElm);
+    let right = new Html("div")
+      .styleJs({
+        width: "50%",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "center",
+        gap: "5px",
+      })
+      .appendTo(playerElm);
+
+    let albumCover = new Html("img")
+      .attr({ src: "" })
+      .styleJs({
+        objectFit: "cover",
+        width: "110px",
+        height: "110px",
+        aspectRatio: "1 / 1",
+        borderRadius: "5px",
+      })
+      .appendTo(left);
+
+    let playerName = new Html("p")
+      .text("App Name")
+      .styleJs({ margin: "0px", padding: "0px", fontSize: "12px" })
+      .appendTo(right);
+    let songName = new Html("h4")
+      .text("Song Name")
+      .styleJs({ margin: "0px", padding: "0px" })
+      .appendTo(right);
+    let artistName = new Html("p")
+      .text("Artist Name")
+      .styleJs({ margin: "0px", padding: "0px", fontSize: "12px" })
+      .appendTo(right);
+    let controls = new Html("div")
+      .styleJs({
+        display: "none",
+        width: "100%",
+        gap: "8px",
+      })
+      .appendTo(right);
+
+    let prevControls = [];
+
+    async function updatePlayer() {
+      let player = {};
+      if (sessionStorage.getItem("player")) {
+        player = JSON.parse(sessionStorage.getItem("player"));
+      }
+      if (!isEmpty(player)) {
+        playerElm.styleJs({ display: "flex" });
+      } else {
+        playerElm.styleJs({ display: "none" });
+      }
+      if (player.appName) {
+        playerName.text(player.appName);
+      }
+      if (player.coverArt) {
+        albumCover.elm.src = player.coverArt;
+        left.styleJs({ display: "flex" });
+      }
+      if (player.mediaName) {
+        songName.text(player.mediaName);
+      }
+      if (player.mediaAuthor) {
+        artistName.text(player.mediaAuthor);
+      }
+      if (player.controls) {
+        if (JSON.stringify(prevControls) == JSON.stringify(player.controls)) {
+          return;
+        }
+        controls.styleJs({ display: "flex" });
+        controls.clear();
+        player.controls.forEach((control) => {
+          new Html("button")
+            .styleJs({
+              background: "transparent",
+              padding: "0",
+              margin: "0",
+              width: "20px",
+              height: "20px",
+            })
+            .html(control.icon)
+            .appendTo(controls)
+            .on("click", () => {
+              Root.Core.processList[player.pid].proc.send({
+                type: "mediaPlayerAction",
+                command: control.callbackEvent,
+              });
+            });
+        });
+        prevControls = player.controls;
+      }
+    }
+
+    setInterval(updatePlayer, 1000);
+
     let trayWrapper = new Root.Lib.html("div")
       .style({ position: "relative" })
+      .class("border-left")
       .appendTo(dock);
 
     const trayMenuButton = new Root.Lib.html("button")
@@ -499,8 +1072,6 @@ export default {
 
       trayMenuState = !trayMenuState;
 
-      let prevItems = [];
-
       if (trayMenuState === true) {
         window.addEventListener("mousedown", onClickDetect);
         window.addEventListener("click", onFullClickDetect);
@@ -513,8 +1084,8 @@ export default {
             let appsHtml = await Promise.all(
               trayItems.map(async (app) => {
                 if (app.proc === undefined || app.proc === null) {
-                  console.log("Bad app");
-                  return;
+                  console.log("Bad app", app);
+                  return false;
                 }
                 const t = app.proc.trayInfo;
                 if (t === null || t === undefined) {
@@ -814,6 +1385,10 @@ export default {
           case "refresh":
             // Language swap, refresh desktop.
             refresh();
+            break;
+          case "logout":
+            if (menuIsOpen) toggleMenu();
+            await logout();
             break;
           case "coreEvent":
             console.log("Desktop received core event", data);

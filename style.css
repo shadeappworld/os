@@ -57,7 +57,7 @@ input[type="range"]:focus {
 input:not([type="checkbox"], [type="range"]),
 textarea,
 .ace_content {
-  cursor: var(--cursor-text) 15 6, auto !important;
+  cursor: var(--cursor-text) 10 9, auto !important;
 }
 
 /* p,
@@ -148,6 +148,30 @@ a {
   --outline: hsl(131, 23%, 22%);
 }
 
+:root[data-theme="purple"] {
+  color-scheme: dark;
+  --primary: hsl(270, 84%, 21%);
+  --negative: #b81414;
+  --negative-light: #f18383;
+  --negative-dark: #710d0d;
+  --positive: #14b838;
+  --positive-light: #7cf197;
+  --positive-dark: #0d7123;
+  --root: hsl(268, 32%, 8%);
+  --root-rgb: 20, 14, 27;
+  --header: hsl(270, 31%, 12%);
+  --unfocused: hsl(270, 34%, 5%);
+  --text: #ffffff;
+  --text-rgb: 255, 255, 255;
+  --text-alt: #bbc5dd;
+  --text-light: #ffffff;
+  --label: hsl(270, 19%, 38%);
+  --label-light: hsl(270, 18%, 50%);
+  --neutral: hsl(270, 29%, 18%);
+  --neutral-focus: hsl(270, 30%, 20%);
+  --outline: hsl(270, 26%, 22%);
+}
+
 :root[data-theme="grey"] {
   color-scheme: dark;
   --primary: #124b31;
@@ -167,8 +191,8 @@ a {
   --text-light: #ffffff;
   --label: #acd3a6;
   --label-light: #acd3a6;
-  --neutral: #222222;
-  --neutral-focus: #252525;
+  --neutral: #252525;
+  --neutral-focus: #282828;
   --outline: #fff3;
 }
 
@@ -243,6 +267,32 @@ body {
   box-shadow: 0px 0px 28px 2px rgba(0, 0, 0, 0.41);
 
   animation: slide-up var(--animation-duration) var(--easing-function) forwards;
+}
+
+.slideUp {
+  animation: slide-up var(--animation-duration) var(--easing-function) forwards;
+}
+
+input.shake {
+  animation: shake var(--animation-duration) var(--easing-function) forwards;
+}
+
+@keyframes shake {
+  0% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(5%);
+  }
+  50% {
+    transform: translateX(-5%);
+  }
+  75% {
+    transform: translateX(5%);
+  }
+  100% {
+    transform: translateX(0);
+  }
 }
 
 .win-window.max {
@@ -541,7 +591,7 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 99999;
+  z-index: 999999999;
   top: 0;
   left: 0;
   animation: fadeIn var(--animation-duration) linear;
@@ -887,7 +937,12 @@ textarea::placeholder {
   min-height: 0;
   overflow: auto;
   margin: 0;
-  touch-action: pan-y !important;
+  touch-action: unset !important;
+}
+
+/* Scroll ovh surfaces on mobile */
+.ovh * {
+  touch-action: unset !important;
 }
 
 /* Table */
@@ -1157,6 +1212,13 @@ td {
 .desktop .dock > .toolbar-button:first-child {
   border-right: 1px solid var(--outline);
   border-radius: 8px 0 0 8px;
+}
+
+.desktop .dock > .border-left {
+  border-left: 1px solid var(--outline);
+}
+.desktop .dock > .border-right {
+  border-right: 1px solid var(--outline);
 }
 
 .desktop .dock > .toolbar-button:last-child {
@@ -1913,11 +1975,27 @@ hr {
 }
 
 .fadeIn {
-  animation: fadeIn var(--animation-duration) var(--easing-function) forwards;
+  animation: fadeIn var(--animation-duration) linear forwards;
 }
 
 .fadeOut {
-  animation: fadeOut var(--animation-duration) var(--easing-function) forwards;
+  animation: fadeOut var(--animation-duration) linear forwards;
+}
+
+.fadeInShort {
+  animation: fadeIn var(--short-animation-duration) linear forwards;
+}
+
+.fadeOutShort {
+  animation: fadeOut var(--short-animation-duration) linear forwards;
+}
+
+.fadeInLong {
+  animation: fadeIn var(--long-animation-duration) linear forwards;
+}
+
+.fadeOutLong {
+  animation: fadeOut var(--long-animation-duration) linear forwards;
 }
 
 .desktop .menu {
@@ -2029,7 +2107,8 @@ hr {
   flex: 1 0 0;
 }
 
-.spacer .space {
+.spacer .space,
+.space {
   width: 100%;
   height: 2px;
   background: var(--label);
@@ -2042,7 +2121,28 @@ hr {
   gap: 4px;
   align-self: stretch;
   overflow: auto;
-  touch-action: auto !important;
+  /* touch-action: pan-y !important; */
+  overflow: auto;
+  
+  -webkit-overflow-scrolling: touch;
+  /* Custom scrollbar styles */
+::-webkit-scrollbar {
+  width: 16px; /* Increase the width of the scrollbar */
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1; /* The track (progress bar) of the scrollbar */
+}
+
+::-webkit-scrollbar-thumb {
+  background: #888; /* The draggable scrolling handle */
+}
+
+/* Handle on hover */
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
 }
 
 .desktop .menu > .apps > .app {
@@ -2224,6 +2324,10 @@ hr {
   display: none;
 }
 
+[data-dock-show-assistant="false"] .desktop .dock button.assistant {
+  display: none;
+}
+
 [data-dock-style="minimal"] .desktop .menu.opening {
   animation: minimalMenuOpen var(--animation-duration) var(--easing-function)
     forwards;
@@ -2267,6 +2371,35 @@ hr {
   align-items: center;
   backdrop-filter: blur(10px) brightness(0.65);
   -webkit-backdrop-filter: blur(10px) brightness(0.65);
+}
+
+.blur::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+  background-image: var(--below-wallpaper);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  filter: blur(10px) brightness(0.7);
+}
+
+.blur::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+  background-image: var(--above-wallpaper);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
 }
 
 .card-box .icon {
@@ -2537,13 +2670,17 @@ hr {
     left 0.25s var(--easing-function);
 }
 
+.blur [class^="display-"] {
+  text-align: center;
+}
+
 .display-heading {
-  font-size: 5vmax;
+  font-size: min(64px, max(48px, 5vmax));
   font-weight: 600;
 }
 
 .display-subheading {
-  font-size: 1.5vmax;
+  font-size: min(48px, max(18px, 1.5vmax));
   font-weight: 550;
 }
 
@@ -2591,9 +2728,10 @@ hr {
   color: var(--text);
   border-radius: 6px;
   user-select: none;
-
   min-width: 120px;
   min-height: 16px;
+  max-height: 80vh;
+  overflow: auto;
   z-index: 9999999;
 }
 
@@ -2614,7 +2752,7 @@ hr {
 
 .ctx-menu .item:hover,
 .ctx-menu .item.over {
-  background-color: var(--header);
+  background-color: var(--neutral-focus);
 }
 
 .win-content .modal {
@@ -2640,7 +2778,7 @@ hr {
 }
 
 .win-content .notify-box {
-  position: absolute;
+  position: fixed;
   top: 0;
   right: 0;
   height: 100%;
@@ -2673,6 +2811,38 @@ hr {
 }
 .slideOut {
   animation: slideOut var(--animation-duration) var(--easing-function) forwards;
+}
+.slideInFromLeft {
+  animation: slideInFromLeft var(--animation-duration) var(--easing-function) forwards;
+}
+.slideInFromRight {
+  animation: slideInFromRight var(--animation-duration) var(--easing-function) forwards;
+}
+.shortSlideInFromLeft {
+  animation: slideInFromLeft var(--short-animation-duration) var(--easing-function) forwards;
+}
+.shortSlideInFromRight {
+  animation: slideInFromRight var(--short-animation-duration) var(--easing-function) forwards;
+}
+@keyframes slideInFromLeft {
+  from {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+@keyframes slideInFromRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
 }
 @keyframes slideIn {
   from {

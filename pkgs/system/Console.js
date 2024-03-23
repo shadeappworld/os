@@ -11,6 +11,50 @@ export default {
 
     let logs = [];
     let list;
+
+    // // define a new console
+    // var console = (function (oldCons) {
+    //   return {
+    //     log: function (...args) {
+    //       oldCons.log(...args);
+    //       // Your code
+    //       log(inspectMuch(...args), inspectMuch(...args), "log");
+    //     },
+    //     info: function (...args) {
+    //       oldCons.info(...args);
+    //       // Your code
+    //     },
+    //     warn: function (...args) {
+    //       oldCons.warn(...args);
+    //       // Your code...args
+    //     },
+    //     error: function (...args) {
+    //       oldCons.error(...args);
+    //       // Your code
+    //     },
+    //     debug: function (...args) {
+    //       oldCons.debug(...args);
+    //     },
+    //     clear: function () {
+    //       oldCons.clear();
+    //     },
+    //     group: function (...text) {
+    //       oldCons.group(...text);
+    //     },
+    //     groupEnd: function () {
+    //       oldCons.groupEnd();
+    //     },
+    //   };
+    // })(window.console);
+
+    // //Then redefine the old console
+    // window.console = console;
+
+    const commandInfos = {
+      launch: "launch <cat:app> - Start a system application",
+      help: "help - Show this menu",
+      clear: "clear - Clear console output",
+    };
     const commands = {
       // Commands example
       async launch(app) {
@@ -18,6 +62,26 @@ export default {
         log("Loading...", "Loading...", "log");
         await Root.Core.startPkg(app);
         log("Loaded" + app, "Loaded " + app, "log");
+      },
+      async help() {
+        log(
+          Object.keys(commandInfos)
+            .map((k) => commandInfos[k])
+            .join("\n"),
+          Object.keys(commandInfos)
+            .map((k) => {
+              const str = commandInfos[k];
+
+              const cmdInfo = str.split(" - ");
+
+              const name = escapeHtml(cmdInfo[0].trim());
+              const desc = escapeHtml(cmdInfo[1].trim());
+
+              return `<span style="color:var(--primary)">${name}</span> - ${desc}`;
+            })
+            .join("\n"),
+          "log"
+        );
       },
       async clear() {
         logs = [];
@@ -88,11 +152,14 @@ export default {
 
     MyWindow = new Win({
       title: "Console",
+      onclose: function () {
+        consoleState = false;
+        MyWindow.hide();
+        return false;
+      },
     });
 
-    MyWindow.window.style.animation = "unset";
     MyWindow.window.style.display = "none";
-
     wrapper = MyWindow.window.querySelector(".win-content");
 
     wrapper.classList.add("col", "h-100");
@@ -100,14 +167,19 @@ export default {
 
     list = new Root.Lib.html("div")
       .class("fg", "ovh", "monospace")
-      .style({ padding: "4px 0" })
+      .style({ padding: "0" })
       .appendTo(wrapper);
     let inputRow = new Root.Lib.html("div")
       .class("row")
       .style({ padding: "4px" })
       .appendTo(wrapper);
     let consoleInput = new Root.Lib.html("input")
-      .attr({ placeholder: "Command" })
+      .attr({
+        placeholder: "Command",
+        autocorrect: "off",
+        autocomplete: "off",
+        autofill: "off",
+      })
       .class("fg", "monospace")
       .style({ "min-width": "0" })
       .appendTo(inputRow)
@@ -127,27 +199,29 @@ export default {
     function log(text, html, type) {
       logs.push({ type, data: text });
 
-      const tolerance = 10;
-      const lastChildRect = list.elm.lastElementChild
-        ? list.elm.lastElementChild.getBoundingClientRect()
-        : null;
-      const isAtBottom =
-        lastChildRect &&
-        lastChildRect.bottom - list.elm.getBoundingClientRect().bottom <=
-          tolerance;
+      if (html === null) html = text;
+
+      // const tolerance = 10;
+      // const lastChildRect = list.elm.lastElementChild
+      //   ? list.elm.lastElementChild.getBoundingClientRect()
+      //   : null;
+      // const isAtBottom =
+      //   lastChildRect &&
+      //   lastChildRect.bottom - list.elm.getBoundingClientRect().bottom <=
+      //     tolerance;
 
       list.append(
         new Root.Lib.html("div").class("list-item", "log-" + type).html(html)
       );
 
-      if (isAtBottom) {
-        list.elm.scrollTop = list.elm.scrollHeight - list.elm.clientHeight;
-      }
-      console.log(
-        list.elm.scrollTop,
-        isAtBottom,
-        list.elm.scrollHeight - list.elm.scrollTop - list.elm.offsetHeight
-      );
+      // if (isAtBottom) {
+      list.elm.scrollTop = list.elm.scrollHeight - list.elm.clientHeight;
+      // }
+      // console.log(
+      //   list.elm.scrollTop,
+      //   isAtBottom,
+      //   list.elm.scrollHeight - list.elm.scrollTop - list.elm.offsetHeight
+      // );
     }
 
     async function runCommand() {
@@ -183,16 +257,25 @@ export default {
 
     let consoleState = false; // not open
 
+    log(
+      "Welcome to the Console",
+      'Welcome to the Console! Type "help" for commands.',
+      "info"
+    );
+
     return Root.Lib.setupReturns((m) => {
       // Got a message
       const { type, data } = m;
       switch (type) {
         case "toggle":
-          console.log("h");
           consoleState = !consoleState;
-          MyWindow.window.style.display =
-            consoleState === true ? "flex" : "none";
-          if (consoleState === true) MyWindow.focus();
+          consoleState === true ? MyWindow.show() : MyWindow.hide();
+          if (consoleState === true) {
+            MyWindow.focus();
+            consoleInput.elm.focus();
+          } else {
+            consoleInput.elm.blur();
+          }
           break;
         case "log":
           log(data, inspectMuch(...data), m.variant || "log");

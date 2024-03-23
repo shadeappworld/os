@@ -27,6 +27,8 @@ let templateFsLayout = {
             '{"version":1,"name":"Red","description":"A built-in theme.","values":null,"cssThemeDataset":"red","wallpaper":"./assets/wallpapers/red.png"}',
           "green.theme":
             '{"version":1,"name":"Green","description":"A built-in theme.","values":null,"cssThemeDataset":"green","wallpaper":"./assets/wallpapers/green.jpg"}',
+          "purple.theme":
+            '{"version":1,"name":"Purple","description":"A built-in theme.","values":null,"cssThemeDataset":"purple","wallpaper":"./assets/wallpapers/purple.svg"}',
         },
       },
       apps: {
@@ -160,6 +162,9 @@ const Vfs = {
           }
         }
       }
+      document.dispatchEvent(new CustomEvent("pluto.vfs-read"), {
+        detail: { path },
+      });
       return resolve(current);
     });
   },
@@ -203,6 +208,10 @@ const Vfs = {
       }
     }
     this.save("write " + path);
+
+    document.dispatchEvent(new CustomEvent("pluto.vfs-write"), {
+      detail: { path, contents },
+    });
   },
   // Function to create a new folder at a given path
   async createFolder(path, fsObject = this.fileSystem) {
@@ -218,6 +227,10 @@ const Vfs = {
     }
     if (!current[foldername]) current[foldername] = {};
     this.save("mkdir " + path);
+
+    document.dispatchEvent(new CustomEvent("pluto.vfs-newFolder"), {
+      detail: { path },
+    });
   },
   // Function to delete a file or folder at a given path
   async delete(path, fsObject = this.fileSystem) {
@@ -248,6 +261,10 @@ const Vfs = {
     delete parent[filename];
 
     this.save("delete " + path);
+
+    document.dispatchEvent(new CustomEvent("pluto.vfs-delete"), {
+      detail: { path },
+    });
   },
   // Function to list all files and folders at a given path
   async list(path, fsObject = this.fileSystem) {
@@ -280,7 +297,7 @@ const Vfs = {
   },
   // Function to rename a file
   // newName MUST be the new exact name of the file
-  // NOT absolute
+  // HAS TO BE NOT absolute
   async rename(path, newName, fsObject = this.fileSystem) {
     const parts = path.split("/");
     const oldName = parts.pop(); // remove last item from path to get dirname
@@ -296,6 +313,9 @@ const Vfs = {
     delete current[oldName];
     current[newName] = temp;
     this.save(`rename ${path} to ${newName}`);
+    document.dispatchEvent(new CustomEvent("pluto.vfs-rename"), {
+      detail: { path, newName },
+    });
   },
   async exists(path, fsObject = this.fileSystem) {
     const parts = path.split("/");

@@ -57,10 +57,13 @@ export default {
     if (!Root.Core && !Root.Core.startPkg) return Root.Lib.onEnd();
 
     const vfs = await Root.Lib.loadLibrary("VirtualFS");
+    const Notify = await Root.Lib.loadLibrary("Notify");
 
     wrapper = Html.from(StoreWindow.window.querySelector(".win-content"));
 
     wrapper.classOn("row", "o-h", "h-100", "with-sidebar");
+
+    const notifyBox = new Html("div").class("notify-box").appendTo(wrapper);
 
     // Hide sidebar (for now)
 
@@ -122,7 +125,7 @@ export default {
     });
 
     const container = new Root.Lib.html("div")
-      .class("col", "w-100", "gap", "ovh", "app-store")
+      .class("w-100", "ovh", "app-store")
       .appendTo(wrapper);
 
     const asFilePath = "Registry/AppStore";
@@ -155,13 +158,21 @@ export default {
       return pkg.replace(/\//g, "--");
     }
 
+    function shuffleArray(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+    }
+
+    let hasLoaded = false,
+      externalMessageQueue = [],
+      appListing = [],
+      host = "https://zeondev.github.io/Pluto-AppStore/",
+      repoHost = "https://github.com/zeondev/Pluto-AppStore/blob/main/pkgs/";
+
     try {
       new Html("div").class("row", "fc").text("Loading...").appendTo(container);
-
-      let host = "https://zeondev.github.io/Pluto-AppStore/";
-      // let host = "http://localhost:5501/";
-      let repoHost =
-        "https://github.com/zeondev/Pluto-AppStore/blob/main/pkgs/";
 
       const appStoreModule = (
         await import(`${host}import_new.js?t=` + performance.now())
@@ -170,6 +181,10 @@ export default {
       // Check if this is the right app store module
       if (appStoreModule.init) {
         await appStoreModule.init(host);
+
+        hasLoaded = true;
+        appListing = await appStoreModule.list();
+        externalMessageQueue.forEach((m) => handleMessage(m));
 
         const sysInfo = Root.Lib.systemInfo;
 
@@ -208,7 +223,7 @@ export default {
           } else if (appCompatible === "warn") {
             appCompatibleIcon = `<span class="row fc">${Root.Lib.icons.warning}</span> May be incompatible`;
           } else if (appCompatible === "err") {
-            appCompatibleIcon = `<span class="row fc">${Root.Lib.icons.circleCheck}</span> Compatible`;
+            appCompatibleIcon = `<span class="row fc">${Root.Lib.icons.circleExclamation}</span> Not compatible`;
           }
 
           if (appCompatible === "ok") appCompatibleColor = "success";
@@ -284,6 +299,10 @@ export default {
             });
         }
 
+        const packageList = await appStoreModule.list();
+
+        shuffleArray(packageList);
+
         pages = {
           async clear() {
             container.elm.innerHTML = "";
@@ -301,11 +320,23 @@ export default {
             }
 
             new Html("h2")
-              .style({ margin: "12px 8px 0 0" })
+              // .style({ margin: "12px 8px 0 0" })
+              .style({
+                margin: "12px 8px 0px 0px",
+                "background-image":
+                  "linear-gradient(to bottom, var(--root) 65%, rgba(var(--root-rgb), 0))",
+                padding: "8px 12px 8px 12px",
+                margin: "0",
+                position: "sticky",
+                height: "48px",
+                "background-color": "transparent",
+                "z-index": "1",
+                top: "0",
+                display: "flex",
+                "align-items": "center",
+              })
               .text(categoryName)
               .appendTo(container);
-
-            const packageList = await appStoreModule.list();
 
             // const searchBar = new Html("div")
             //   .class("search-bar")
@@ -607,13 +638,33 @@ export default {
                 ),
                 // Repository URL
                 new Html("div").class("app-sub-details-item").appendMany(
-                  new Html("h3").text("Source code"),
+                  new Html("h3").text("External"),
                   new Html("button")
                     .style({ margin: 0 })
                     .on("click", () => {
                       window.open(app.repoUrl);
                     })
-                    .text("View on GitHub")
+                    .text("View on GitHub"),
+                  new Html("button")
+                    .style({ margin: 0 })
+                    .on("click", async () => {
+                      const u = new URLSearchParams();
+                      u.set("pkg", "apps:AppStore");
+                      u.set(
+                        "data",
+                        JSON.stringify({ type: "view", data: app.id })
+                      );
+
+                      await navigator.clipboard.writeText(
+                        `${location.protocol}//${location.host}?${u.toString()}`
+                      );
+                      Notify.show(
+                        "Copied!",
+                        "Link to " + app.name + " was copied.",
+                        notifyBox
+                      );
+                    })
+                    .text("Copy URL to app")
                 )
               )
               .appendTo(container);
@@ -705,14 +756,39 @@ export default {
       );
     }
 
-    return Root.Lib.setupReturns(async (m) => {
+    async function handleMessage(m) {
       if (m && m.type) {
         if (m.type === "refresh") {
           Root.Lib.getString = m.data;
           StoreWindow.setTitle(Root.Lib.getString("systemApp_AppStore"));
           Root.Lib.updateProcTitle(Root.Lib.getString("systemApp_AppStore"));
+        } else if (m.type === "page") {
+          if (m.data in pages) {
+            pages[m.data]();
+          }
+        } else if (m.type === "view") {
+          const pkgInfo = appListing.find((a) => a.id === m.data);
+          if (pkgInfo === undefined) {
+            console.log(`i don't know what ${m.data} is`);
+            return;
+          }
+
+          let app = Object.assign(pkgInfo, {
+            repoUrl: repoHost + pkgInfo.id,
+          });
+          const pkg = pkgInfo.id;
+
+          pages.appPage(app, pkg);
         }
       }
+    }
+
+    return Root.Lib.setupReturns(async (m) => {
+      if (hasLoaded === false) {
+        console.log("you sent message before i could load...");
+        return externalMessageQueue.push(m);
+      }
+      handleMessage(m);
     });
   },
 };

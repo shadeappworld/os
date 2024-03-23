@@ -81,11 +81,65 @@ export default {
         document.documentElement.dataset.dockShowTray =
           appearanceConfig.dockShowTray;
       }
+      if (appearanceConfig.dockShowAssistant !== undefined) {
+        document.documentElement.dataset.dockShowAssistant =
+          appearanceConfig.dockShowAssistant;
+      }
       if (
         appearanceConfig.language &&
         Root.Lib.langs.includes(appearanceConfig.language)
       ) {
         Root.Core.setLanguage(appearanceConfig.language);
+      }
+
+      let themeLib = await Root.Core.startPkg("lib:ThemeLib");
+
+      async function checkTheme() {
+        if (
+          appearanceConfig.theme &&
+          appearanceConfig.theme.endsWith(".theme")
+        ) {
+          const x = themeLib.validateTheme(
+            await vfs.readFile(
+              "Root/Pluto/config/themes/" + appearanceConfig.theme
+            )
+          );
+
+          if (x !== undefined && x.success === true) {
+            console.log(x);
+
+            themeLib.setCurrentTheme(x.data);
+          } else {
+            console.log(x.message);
+            document.documentElement.dataset.theme = "dark";
+          }
+        } else {
+          themeLib.setCurrentTheme(
+            '{"version":1,"name":"Dark","description":"A built-in theme.","values":null,"cssThemeDataset":"dark","wallpaper":"./assets/wallpapers/space.png"}'
+          );
+        }
+      }
+
+      await checkTheme();
+
+      lsg.cleanup();
+
+      if (appearanceConfig["shh"] === true) {
+        window.__DEBUG = true;
+      }
+
+      if (
+        (appearanceConfig["wantsLoginScreen"] === undefined ||
+          appearanceConfig["wantsLoginScreen"] === true) &&
+        sessionStorage.getItem("skipLogin") !== "true"
+      ) {
+        const lgs = await Root.Core.startPkg(
+          "ui:ActualLoginScreen",
+          true,
+          true
+        );
+
+        await lgs.launch();
       }
 
       if (await vfs.exists("Root/Pluto/config/settingsConfig.json")) {
@@ -116,38 +170,53 @@ export default {
         await Root.Core.startPkg("ui:Desktop", true, true);
       }
 
-      let themeLib = await Root.Core.startPkg("lib:ThemeLib");
+      const searchParams = new URLSearchParams(location.search);
 
-      if (appearanceConfig.theme && appearanceConfig.theme.endsWith(".theme")) {
-        const x = themeLib.validateTheme(
-          await vfs.readFile(
-            "Root/Pluto/config/themes/" + appearanceConfig.theme
-          )
-        );
+      async function checkPackageBoot() {
+        if (searchParams.has("pkg")) {
+          const pkg = searchParams.get("pkg");
+          if (pkg.startsWith("app:")) {
+            // load custom app from fs
+            const appExists = await vfs.exists(pkg.slice(4));
 
-        if (x !== undefined && x.success === true) {
-          console.log(x);
+            if (!appExists) return;
 
-          themeLib.setCurrentTheme(x.data);
+            const app = await vfs.readFile(pkg.slice(4));
+
+            const p = await Root.Core.startPkg(
+              "data:text/javascript," + encodeURIComponent(app),
+              false,
+              true
+            );
+
+            if (searchParams.has("data")) {
+              p.proc.send(JSON.parse(searchParams.get("data")));
+            }
+          } else {
+            // load system app
+            const p = await Root.Core.startPkg(pkg, true, true);
+
+            if (searchParams.has("data")) {
+              try {
+                p.proc.send(JSON.parse(searchParams.get("data")));
+              } catch (e) {}
+            }
+          }
         } else {
-          console.log(x.message);
-          document.documentElement.dataset.theme = "dark";
+          if (
+            appearanceConfig["hasSetupSystem"] === undefined ||
+            appearanceConfig["hasSetupSystem"] === false
+          ) {
+            await Root.Core.startPkg("apps:Welcome", true, true);
+          }
         }
-      } else {
-        themeLib.setCurrentTheme(
-          '{"version":1,"name":"Dark","description":"A built-in theme.","values":null,"cssThemeDataset":"dark","wallpaper":"./assets/wallpapers/space.png"}'
-        );
       }
 
-      if (
-        appearanceConfig["hasSetupSystem"] === undefined ||
-        appearanceConfig["hasSetupSystem"] === false
-      ) {
-        await Root.Core.startPkg("apps:Welcome", true, true);
-      }
+      await checkPackageBoot();
+
+      await checkTheme();
       // await Root.Core.startPkg("apps:TaskManager", true, true);
       // destroy loading screen
-      lsg.cleanup();
 
       // ply startup stound
       let a = new Audio("./assets/startup.wav");
@@ -160,6 +229,7 @@ export default {
       document.addEventListener("keydown", (e) => {
         if (e.key === "~") {
           e.preventDefault();
+          if (e.repeat) return;
           consoleApp.proc.send({ type: "toggle" });
         }
       });

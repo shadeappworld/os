@@ -1,9 +1,9 @@
-// ShadeOS
+// Pluto
 (async () => {
   try {
     const coreDetails = {
-      version: 1.5,
-      versionString: (1.5).toFixed(1),
+      version: 1.6,
+      versionString: (1.6).toString(),
       codename: "Elysium",
     };
     const knownLibraries = [];
@@ -359,7 +359,7 @@
           }
         }
       },
-      randomString: (_) => {
+      randomString: () => {
         if (crypto && crypto.randomUUID) return crypto.randomUUID();
         else {
           var d = new Date().getTime();
@@ -442,6 +442,15 @@
 
         this.escapeHtml = escapeHtml;
         this.getString = function (str, replacements = null) {
+          broadcastEventToProcs({
+            type: "procEvent",
+            data: {
+              type: "getString",
+              pid: Pid,
+              url: Url,
+              data: arguments,
+            },
+          });
           return getString(str, replacements, strs);
         };
 
@@ -450,17 +459,44 @@
         this.icons = GlobalLib.icons;
         this.systemInfo = coreDetails;
         this.updateProcTitle = function (newTitle) {
+          broadcastEventToProcs({
+            type: "procEvent",
+            data: {
+              type: "updateProcTitle",
+              pid: Pid,
+              url: Url,
+              data: arguments,
+            },
+          });
           if (Core.processList[Pid].proc !== null) {
             Core.processList[Pid].proc.name = newTitle;
           }
         };
         this.updateProcDesc = function (newDescription) {
+          broadcastEventToProcs({
+            type: "procEvent",
+            data: {
+              type: "updateProcDesc",
+              pid: Pid,
+              url: Url,
+              data: arguments,
+            },
+          });
           if (Core.processList[Pid].proc !== null) {
             Core.processList[Pid].proc.description = newDescription;
           }
         };
         this.langs = supportedLangs;
         this.launch = async (app, parent = "body") => {
+          broadcastEventToProcs({
+            type: "procEvent",
+            data: {
+              type: "launch",
+              pid: Pid,
+              url: Url,
+              data: arguments,
+            },
+          });
           let appName = "";
 
           if (Core.processList[Pid].proc !== null) {
@@ -483,8 +519,17 @@
             return false;
           }
         };
-        this.getProcessList = (_) =>
-          Core.processList
+        this.getProcessList = () => {
+          broadcastEventToProcs({
+            type: "procEvent",
+            data: {
+              type: "getProcessList",
+              pid: Pid,
+              url: Url,
+              data: arguments,
+            },
+          });
+          return Core.processList
             .filter((m) => m !== null)
             .map((m) => {
               return {
@@ -492,15 +537,43 @@
                 pid: m.pid,
               };
             });
+        };
         this.loadLibrary = async (lib) => {
           if (lib.includes(":")) return false;
+          broadcastEventToProcs({
+            type: "procEvent",
+            data: {
+              type: "loadLibrary",
+              pid: Pid,
+              url: Url,
+              data: [lib],
+            },
+          });
           return await Core.startPkg("lib:" + lib);
         };
         this.loadComponent = async (cmp) => {
           if (cmp.includes(":")) return false;
+          broadcastEventToProcs({
+            type: "procEvent",
+            data: {
+              type: "loadComponent",
+              pid: Pid,
+              url: Url,
+              data: [cmp],
+            },
+          });
           return await Core.startPkg("components:" + cmp);
         };
         this.cleanup = function (pid, token) {
+          broadcastEventToProcs({
+            type: "procEvent",
+            data: {
+              type: "cleanup",
+              pid: Pid,
+              url: Url,
+              data: [pid],
+            },
+          });
           // Token is required for the pid to verify that it is the one willing to clean up
           console.log("Checking..");
           const proc = Core.processList
@@ -515,6 +588,15 @@
           }
         };
         this.setOnEnd = function (onEndCallback) {
+          broadcastEventToProcs({
+            type: "procEvent",
+            data: {
+              type: "setOnEnd",
+              pid: Pid,
+              url: Url,
+              data: [onEndCallback],
+            },
+          });
           this.onEndCallback = onEndCallback;
           this.onEnd = () => {
             console.log("Example process ended, attempting clean up...");
@@ -528,6 +610,15 @@
           };
         };
         this.setupReturns = function (onMessage, trayInfo = null) {
+          broadcastEventToProcs({
+            type: "procEvent",
+            data: {
+              type: "setOnEnd",
+              pid: Pid,
+              url: Url,
+              data: [onMessage, trayInfo],
+            },
+          });
           // the idea is a standardized .proc on processes
           return {
             end: this.onEnd,
@@ -718,7 +809,8 @@
                 });
               } else if (
                 pkg.privileges === undefined ||
-                pkg.privileges === false
+                pkg.privileges === false ||
+                pkg.optInToEvents === false
               ) {
                 result = await pkg.exec({
                   Lib: newLib,
@@ -847,6 +939,17 @@
                   });
                 } else if (modalResult === false) {
                   result = null;
+                  // Report the app was improperly quit
+                  broadcastEventToProcs({
+                    type: "coreEvent",
+                    data: {
+                      type: "pkgEnd",
+                      detail: "forceStop",
+                      data: Core.processList[PID],
+                    },
+                  });
+                  // End the process
+                  Core.processList[PID] = null;
                   return;
                 }
               }
@@ -940,6 +1043,18 @@
         window.bootUpCore = null;
       }, 1000);
     }
+
+    Core.processList.push({
+      name: "system:Core",
+      pid: 0,
+      proc: {
+        name: `Pluto Core (${coreDetails.codename})`,
+        description: "Handles core system functionality and package loading.",
+        trayInfo: null,
+        end: null
+      },
+      token: GlobalLib.randomString(),
+    });
 
     await Core.startPkg("system:BootLoader");
   } catch (e) {

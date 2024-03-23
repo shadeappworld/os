@@ -63,7 +63,7 @@ export default {
       },
       {
         localizedName: "systemApp_Browser",
-        name: "Inline Magic Appstore",
+        name: "Browser",
         icon: "globe",
         fullName: "apps:Browser",
       },
@@ -84,6 +84,12 @@ export default {
         name: "Calculator",
         icon: "calculator",
         fullName: "apps:Calculator",
+      },
+      {
+        localizedName: "systemApp_EventViewer",
+        name: "Event Viewer",
+        icon: "monitor",
+        fullName: "apps:EventViewer",
       },
     ];
     console.log(shortcutsList.length);
