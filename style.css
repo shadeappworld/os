@@ -462,7 +462,7 @@ input.shake {
   flex: 1;
   background: var(--root);
   overflow: auto;
-  touch-action: pan-y !important;
+  touch-action: auto;
   border-bottom-left-radius: 5px;
   border-bottom-right-radius: 5px;
   position: relative;
@@ -937,12 +937,12 @@ textarea::placeholder {
   min-height: 0;
   overflow: auto;
   margin: 0;
-  touch-action: unset !important;
+  touch-action: auto !important;
 }
 
 /* Scroll ovh surfaces on mobile */
 .ovh * {
-  touch-action: unset !important;
+  touch-action: auto !important;
 }
 
 /* Table */
@@ -1677,7 +1677,7 @@ ul {
   scrollbar-width: thin;
   scrollbar-color: var(--neutral) var(--root);
   box-sizing: border-box;
-  touch-action: none !important;
+  touch-action: auto !important;
   transition-property: background-color, color, border-color;
   transition-duration: 0.1s;
   transition-timing-function: var(--easing-function);
@@ -2121,7 +2121,7 @@ hr {
   gap: 4px;
   align-self: stretch;
   overflow: auto;
-  touch-action: pan-y !important;
+  touch-action: auto !important;
 }
 
 .desktop .menu > .apps > .app {
