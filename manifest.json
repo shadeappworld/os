@@ -18,7 +18,7 @@
     "window-controls-overlay"
   ],
   "lang": "en",
-  "orientation": "landscape",
+  "orientation": "any",
   "dir": "auto",
   "prefer_related_applications": false,
   "categories": [
