@@ -3,7 +3,7 @@
   "short_name": "ShadeOS",
   "description": "ShadeOS is Shade Software's first cloud-based, portable operating system.",
   "start_url": "index.html",
-  "display": "fullscreen",
+  "display": "standalone",
   "background_color": "#000000",
   "theme_color": "#000000",
   "icons": [
@@ -14,8 +14,8 @@
     }
   ],
   "display_override": [
-    "fullscreen",
-    "window-controls-overlay"
+    "window-controls-overlay",
+    "standalone"
   ],
   "lang": "en",
   "orientation": "any",
