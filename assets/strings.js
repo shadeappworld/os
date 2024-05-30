@@ -1,6 +1,6 @@
 export default {
   en_US: {
-    plutoName: "Pluto",
+    plutoName: "ShadeOS",
     plutoVersionName: "Elysium",
     ok: "OK",
     cancel: "Cancel",
@@ -121,7 +121,7 @@ export default {
     dontHaveZeonAccount: "Don't have an account?",
   },
   de_DE: {
-    plutoName: "Pluto",
+    plutoName: "ShadeOS",
     plutoVersionName: "Elysium",
     ok: "OK",
     cancel: "Stornieren",
@@ -198,7 +198,7 @@ export default {
     systemApp_Calculator: "Calculator",
   },
   es_ES: {
-    plutoName: "Pluto",
+    plutoName: "ShadeOS",
     plutoVersionName: "Elíseo",
     ok: "Entiendo",
     cancel: "Cancelar",
@@ -271,7 +271,7 @@ export default {
     systemApp_Calculator: "Calculadora",
   },
   pt_BR: {
-    plutoName: "Pluto",
+    plutoName: "ShadeOS",
     plutoVersionName: "Elíseo",
     ok: "Eu entendo",
     cancel: "Cancelar",
@@ -341,7 +341,7 @@ export default {
     systemApp_Calculator: "Calculadora",
   },
   fil_PH: {
-    plutoName: "Pluto",
+    plutoName: "ShadeOS",
     plutoVersionName: "Elysium",
     ok: "OK",
     cancel: "I-cancel",

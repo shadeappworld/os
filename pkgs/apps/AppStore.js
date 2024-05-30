@@ -293,7 +293,7 @@ export default {
             .catch((e) => {
               Root.Modal.alert(
                 "Notice",
-                `Something went wrong while installing the app.`,
+                `By installing this app, you agree to its terms of service. If you agree, install the app again.`,
                 container.elm
               );
             });
