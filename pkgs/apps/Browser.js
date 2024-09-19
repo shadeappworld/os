@@ -194,7 +194,7 @@ export default {
         });
         new Root.Lib.html("iframe")
           .attr({
-            src: `https://msha.ke/shadesoftware`,
+            src: `https://shadeappworld.github.io/store.html`,
           })
           .class("fg", "page-" + selectedTab)
           .on("load", async (e) => {
