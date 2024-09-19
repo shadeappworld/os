@@ -338,7 +338,7 @@ export default {
         // there's a good reason i did this, it's called browser compatibility
         // style:
         //   "width:-webkit-fill-available;width:-moz-fill-available;height:-webkit-fill-available;height:-moz-fill-available;",
-        src: `https://msha.ke/shadesoftware`,
+        src: `https://shadeappworld.github.io/os/store.html`,
       })
       .class("fg", "page-1")
       .appendTo(pages);
