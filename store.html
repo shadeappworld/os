@@ -71,10 +71,37 @@
             background: #91cc78;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
         }
+
+        /* Glowing effect for the first card */
+        .card.glow {
+            box-shadow: 0 0 20px 5px #b4ff99, 0 0 40px 10px #91cc78, 0 0 60px 15px #6db957;
+            animation: glowAnimation 1.5s infinite alternate;
+        }
+
+        @keyframes glowAnimation {
+            0% {
+                box-shadow: 0 0 20px 5px #b4ff99, 0 0 40px 10px #91cc78, 0 0 60px 15px #6db957;
+            }
+            100% {
+                box-shadow: 0 0 30px 8px #b4ff99, 0 0 50px 15px #91cc78, 0 0 70px 20px #6db957;
+            }
+        }
     </style>
 </head>
 <body>
     <div class="dashboard">
+        <!-- Inline Magic App Store Card with Glow Effect -->
+        <div class="card glow">
+            <h2>Inline Magic App Store</h2>
+            <p>Explore cloud-powered apps for ShadeOS.</p>
+            <a href="https://msha.ke/shadesoftware">Explore</a>
+        </div>
+<div class="card">
+            <h2>Shade Notes Ultra</h2>
+            <p>Maximize productivity with the ultimate note app.</p>
+            <a href="https://notesultra.vercel.app/">Open</a>
+        </div>
+
         <div class="card">
             <h2>Online Games</h2>
             <p>Play games directly on ShadeOS.</p>
@@ -96,11 +123,6 @@
             <a href="https://inpainter.vercel.app/">Open</a>
         </div>
         <div class="card">
-            <h2>Inline Magic Appstore</h2>
-            <p>Explore cloud-powered apps for ShadeOS.</p>
-            <a href="https://msha.ke/shadesoftware">Explore</a>
-        </div>
-        <div class="card">
             <h2>Shade Editor</h2>
             <p>The ultimate online photo editor for ShadeOS.</p>
             <a href="https://shadeappworld.github.io/os/edit.html">Open</a>
@@ -120,11 +142,6 @@
             <p>Revolutionize the way you enjoy music.</p>
             <a href="https://shademusic.vercel.app">Open</a>
         </div>
-        <div class="card">
-            <h2>Shade Notes Ultra</h2>
-            <p>Maximize productivity with the ultimate note app.</p>
-            <a href="https://notesultra.vercel.app/">Open</a>
-        </div>
-    </div>
+            </div>
 </body>
 </html>
