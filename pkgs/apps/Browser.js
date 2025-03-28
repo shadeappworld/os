@@ -194,7 +194,7 @@ export default {
         });
         new Root.Lib.html("iframe")
           .attr({
-            src: `https://shadeappworld.github.io/os/store.html`,
+            src: `https://shadex.vercel.app/x.html`,
           })
           .class("fg", "page-" + selectedTab)
           .on("load", async (e) => {
@@ -338,7 +338,7 @@ export default {
         // there's a good reason i did this, it's called browser compatibility
         // style:
         //   "width:-webkit-fill-available;width:-moz-fill-available;height:-webkit-fill-available;height:-moz-fill-available;",
-        src: `https://shadeappworld.github.io/os/store.html`,
+        src: `https://shadex.vercel.app/x.html`,
       })
       .class("fg", "page-1")
       .appendTo(pages);
