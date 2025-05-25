@@ -1,68 +1,50 @@
 <!DOCTYPE html>
-<html>
-  <head><!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-N0QJZ3TYV5"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
+<html lang="en">
+  <head>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-N0QJZ3TYV5"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag() { dataLayer.push(arguments); }
+      gtag('js', new Date());
+      gtag('config', 'G-N0QJZ3TYV5');
+    </script>
 
-  gtag('config', 'G-N0QJZ3TYV5');
-</script>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-
-    <meta
-      name="description"
-      content="ShadeOS is a minimal but functional 'web OS'
-    that aims to provide a desktop environment-like experience inside of a
-    website."
-    />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="ShadeOS is a minimal but functional 'web OS' that aims to provide a desktop environment-like experience inside of a website." />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="darkreader-lock" />
     <title>ShadeOS</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap"
-      rel="stylesheet"
-    />
-    <link rel="manifest" href="manifest.json" />
     <style>
-      html,
-      body {
+      html, body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
         background-color: black;
       }
+
+      iframe {
+        border: none;
+        width: 100vw;
+        height: 100vh;
+        display: block;
+      }
+
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        border: 0;
+      }
     </style>
-    <meta name="darkreader-lock" />
-    <link href="style.css" rel="stylesheet" type="text/css" />
-    <meta name="color-scheme" content="light dark" />
   </head>
 
   <body>
-    <script
-      defer
-      type="text/javascript"
-      src="https://cdnjs.cloudflare.com/ajax/libs/jshashes/1.0.8/hashes.min.js"
-    ></script>
-    <script
-      defer
-      src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.22.0/ace.min.js"
-      integrity="sha512-q6CTB0jS+VuJnSct82rVcWlI06LGzNjaG3CWenHWVUncRvc4UQMFkA3a5Ip880xr+lBx38FcHDclOxPdSg+sBw=="
-      crossorigin="anonymous"
-      referrerpolicy="no-referrer"
-    ></script>
-    <script
-      defer
-      src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.22.0/ext-language_tools.js"
-      crossorigin="anonymous"
-      referrerpolicy="no-referrer"
-    ></script>
-    <script src="./assets/localforage.min.js"></script>
-    <script defer src="core.js"></script>
-<script>
-  if (typeof navigator.serviceWorker !== 'undefined') {
-    navigator.serviceWorker.register('sw.js')
-  }
-</script>
-    
+      <iframe src="https://shadeos.vercel.app" allowfullscreen></iframe>
   </body>
 </html>
